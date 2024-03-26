@@ -30,7 +30,12 @@ classifiers = [
   "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = []
+dependencies = [
+  "click >=8.1",
+  "numpy >=1.26",
+  "dipy >=1.9",
+  "HD_BET @ git+https://github.com/MIC-DKFZ/HD-BET@ae16068",
+]
 
 [project.optional-dependencies]
 test = [
@@ -55,6 +60,8 @@ Homepage = "https://github.com/brain-microstructure-exploration-tools/abcd-micro
 Discussions = "https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/discussions"
 Changelog = "https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/releases"
 
+[project.scripts]
+gen_masks = "abcd_microstructure_pipelines.masks:gen_masks"
 
 [tool.setuptools_scm]
 write_to = "src/abcd_microstructure_pipelines/_version.py"
