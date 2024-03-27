@@ -38,6 +38,7 @@ repos:
       - id: prettier
         types_or: [yaml, markdown, html, css, scss, javascript, json]
         args: [--prose-wrap=always]
+        exclude: "^.copier-answers.yml$"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: "v0.1.14"
