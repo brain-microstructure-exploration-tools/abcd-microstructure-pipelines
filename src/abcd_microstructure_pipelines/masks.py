@@ -25,10 +25,12 @@ def find_all_cases(root: Path) -> Iterable[Path]:
 
 def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     """
-    :param dwi: `_dwi.nii.gz` input
-    :param bval: `.bval` input
-    :param bvec: `.bvec` input
-    :param b0_out: `.b0.nii.gz` output
+    Generate mean intensity for each voxel in the image as a single channel.
+
+    :param dwi: ``_dwi.nii.gz`` input.
+    :param bval: ``.bval`` input.
+    :param bvec: ``.bvec`` input.
+    :param b0_out: ``.b0.nii.gz`` output.
     """
     data, affine, img = dipy.io.image.load_nifti(str(dwi), return_img=True)
     bvals, bvecs = dipy.io.read_bvals_bvecs(str(bval), str(bvec))
@@ -43,19 +45,39 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
 
 
 @click.command("gen_masks")
-@click.option("--inputs", "-i", required=True, type=Path)
-@click.option("--outputs", "-o", required=True, type=Path)
-@click.option("--overwrite", is_flag=True)
-@click.option("--parallel", "-j", is_flag=True)
+@click.option(
+    "--inputs",
+    "-i",
+    required=True,
+    type=Path,
+    help="Root directory to search for ``_dwi.nii.gz`` cases.",
+)
+@click.option(
+    "--outputs",
+    "-o",
+    required=True,
+    type=Path,
+    help="Root directory for output. Produces ``_dwi_mask.nii.gz`` output for each case, preserving directory structure.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="If true, recompute and overwrite existing output files.",
+)
+@click.option(
+    "--parallel",
+    "-j",
+    is_flag=True,
+    help="If true, compute intermediate ``.b0.nii.gz`` files in parallel. Note that HD_BET does *not* compute in parallel.",
+)
 def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> None:
     """
     Recursively find and process dwi images and create hd_bet masks for each.
-    :param inputs: Root directory to search for `_dwi.nii.gz` cases.
-    :param outputs: Root directory for output. Produces `_dwi_mask.nii.gz` output for each case, preserving directory
-        structure.
+    \f
+    :param inputs: Root directory to search for ``_dwi.nii.gz`` cases.
+    :param outputs: Root directory for output. Produces ``_dwi_mask.nii.gz`` output for each case, preserving directory structure.
     :param overwrite: If true, recompute and overwrite existing output files.
-    :param parallel: If true, compute intermediate `.b0.nii.gz` files in parallel. Note that HD_BET does _not_ compute
-        in parallel.
+    :param parallel: If true, compute intermediate ``.b0.nii.gz`` files in parallel. Note that HD_BET does *not* compute in parallel.
     """
     b0_tasks: list[tuple[Path, Path, Path, Path]] = []  # args for gen_b0_mean
 
