@@ -61,7 +61,7 @@ Discussions = "https://github.com/brain-microstructure-exploration-tools/abcd-mi
 Changelog = "https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/releases"
 
 [project.scripts]
-gen_masks = "abcd_microstructure_pipelines.masks:gen_masks"
+gen_masks = "abcd_microstructure_pipelines.run:gen_masks"
 
 [tool.setuptools_scm]
 write_to = "src/abcd_microstructure_pipelines/_version.py"
