@@ -7,7 +7,6 @@ import os
 from collections.abc import Iterable
 from pathlib import Path
 
-import click
 import dipy.core.gradients
 import dipy.io
 import dipy.io.image
@@ -44,36 +43,12 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     dipy.io.image.save_nifti(str(b0_out), b0_mean, affine, img.header)
 
 
-@click.command("gen_masks")
-@click.option(
-    "--inputs",
-    "-i",
-    required=True,
-    type=Path,
-    help="Root directory to search for ``_dwi.nii.gz`` cases.",
-)
-@click.option(
-    "--outputs",
-    "-o",
-    required=True,
-    type=Path,
-    help="Root directory for output. Produces ``_dwi_mask.nii.gz`` output for each case, preserving directory structure.",
-)
-@click.option(
-    "--overwrite",
-    is_flag=True,
-    help="If true, recompute and overwrite existing output files.",
-)
-@click.option(
-    "--parallel",
-    "-j",
-    is_flag=True,
-    help="If true, compute intermediate ``.b0.nii.gz`` files in parallel. Note that HD_BET does *not* compute in parallel.",
-)
-def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> None:
+def recursive_generate(
+    inputs: Path, outputs: Path, overwrite: bool, parallel: bool
+) -> None:
     """
     Recursively find and process dwi images and create hd_bet masks for each.
-    \f
+
     :param inputs: Root directory to search for ``_dwi.nii.gz`` cases.
     :param outputs: Root directory for output. Produces ``_dwi_mask.nii.gz`` output for each case, preserving directory structure.
     :param overwrite: If true, recompute and overwrite existing output files.
