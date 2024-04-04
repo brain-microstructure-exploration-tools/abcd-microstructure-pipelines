@@ -11,6 +11,29 @@ import dipy.io
 import dipy.io.image
 
 
+class Case(NamedTuple):
+    """All input and output files to generate a single mask."""
+
+    dwi: Path
+    """``_dwi.nii.gz`` input."""
+
+    bval: Path
+    """``.bval`` input."""
+
+    bvec: Path
+    """``.bvec`` input."""
+
+    b0_out: Path
+    """``_b0.nii.gz`` output."""
+
+    mask_out: Path
+    """``_mask.nii.gz`` output.
+
+    HD-BET always outputs files ending in ``_mask.nii.gz``, so this file must have that suffix. Otherwise another
+    file with that suffix would be created and ``mask_out`` will not exist.
+    """
+
+
 def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     """
     Generate mean intensity for each voxel in the image as a single channel.
@@ -31,27 +54,6 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
 
     logging.debug("generate %r", b0_out)
     dipy.io.image.save_nifti(str(b0_out), b0_mean, affine, img.header)
-
-
-class Case(NamedTuple):
-    dwi: Path
-    """``_dwi.nii.gz`` input."""
-
-    bval: Path
-    """``.bval`` input."""
-
-    bvec: Path
-    """``.bvec`` input."""
-
-    b0_out: Path
-    """``_b0.nii.gz`` output."""
-
-    mask_out: Path
-    """``_mask.nii.gz`` output.
-
-    HD-BET always outputs files ending in ``_mask.nii.gz``, so this file must have that suffix. Otherwise another
-    file with that suffix would be created and ``mask_out`` will not exist.
-    """
 
 
 def extract_hd_bet_args(
