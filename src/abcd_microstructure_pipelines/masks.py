@@ -3,24 +3,12 @@ from __future__ import annotations
 import itertools
 import logging
 import multiprocessing.pool
-import os
-from collections.abc import Iterable
 from pathlib import Path
 from typing import NamedTuple
 
 import dipy.core.gradients
 import dipy.io
 import dipy.io.image
-
-logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARN"))
-
-
-def find_all_cases(root: Path) -> Iterable[Path]:
-    """
-    Recursively find all dwi cases in directory. Yield the case base names with file suffixes removed.
-    """
-    for dwi in root.rglob("*_dwi.nii.gz"):
-        yield dwi.with_name(dwi.name.removesuffix(".nii.gz"))
 
 
 def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
@@ -66,64 +54,87 @@ class Case(NamedTuple):
     """
 
 
-def extract_hd_bet_args(tasks: list[tuple[Path, Path]]) -> tuple[list[str], list[str]]:
+def extract_hd_bet_args(
+    cases: list[Case], overwrite: bool
+) -> tuple[list[str], list[str]]:
     """
+    Extract arguments for ``HD_BET.run.run_hd_bet`` to process the cases. Do not include cases whose output already
+    exists, unless ``overwrite`` is set.
+
     hd_bet expects arguments as a pair of lists, rather than a list of pairs. hd_bet also appends ``_mask`` to its
     output filenames, and this feature cannot be disabled, so check the outputs in ``tasks`` contain this suffix and
     choose the arguments to produce the correct output.
 
     Warn and skip tasks where this is not possible.
 
-    :param tasks: list of (input, output) pairs of paths
-    :return: pair of list of valid paths (inputs, outputs)
+    :param cases: list of cases to process
+    :param overwrite: include cases with already existing output.
+    :return: (inputs, outputs) arguments suitable for ``HD_BET.run.run_hd_bet``
     """
 
     inputs = []
     outputs = []
 
-    for inp, outp in tasks:
-        outp_arg = outp.with_name(
-            outp.name.removesuffix("_mask.nii.gz") + ".nii.gz"
-        )  # invert hd_bet behavior.
-        outp_real = outp_arg.with_name(
-            outp_arg.name[:-7] + "_mask.nii.gz"
-        )  # match hd_bet behavior.
+    for case in cases:
+        if not overwrite and case.mask_out.exists():
+            continue
 
-        if outp_real != outp:
+        # invert hd_bet behavior.
+        output_arg = case.mask_out.with_name(
+            case.mask_out.name.removesuffix("_mask.nii.gz") + ".nii.gz"
+        )
+
+        # match hd_bet behavior.
+        output_real = output_arg.with_name(output_arg.name[:-7] + "_mask.nii.gz")
+
+        if output_real != case.mask_out:
             logging.warning(
                 "HD-BET will not output %r. Would output %r instead. Skipping.",
-                outp.name,
-                outp_real.name,
+                case.mask_out.name,
+                output_real.name,
             )
             continue
 
-        inputs.append(str(inp))
-        outputs.append(str(outp_arg))
+        inputs.append(str(case.b0_out))
+        outputs.append(str(output_arg))
 
     return inputs, outputs
 
 
+def extract_gen_b0_args(
+    cases: list[Case], overwrite: bool
+) -> list[tuple[Path, Path, Path, Path]]:
+    """
+    Extract arguments for ``gen_b0_mean`` to process each case. Do not include cases whose output already exists,
+    unless ``overwrite`` is set.
+
+    :param cases: list of cases to process
+    :param overwrite: include cases with already existing output.
+    :return: list of arguments for invocations to ``gen_b0_mean``, suitable for ``starmap``.
+    """
+
+    args = []
+    for case in cases:
+        if not overwrite and case.b0_out.exists():
+            continue
+
+        args.append((case.dwi, case.bval, case.bvec, case.b0_out))
+
+    return args
+
+
 def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
     """
-    :param cases:
-    :param overwrite:
-    :param parallel:
+    Generate ``b0_out`` and ``mask_out`` for each case. See ``extract_hd_bet_args`` for notes on HD_BET.
+
+    :param cases: The cases to process.
+    :param overwrite: Overwrite existing files only if this is set.
+    :param parallel: Generate ``b0_out`` in parallel. HD_BET does not run in parallel.
     """
 
-    # args for gen_b0_mean
-    b0_tasks = [
-        (case.dwi, case.bval, case.bvec, case.b0_out)
-        for case in cases
-        if overwrite or not case.b0_out.exists()
-    ]
+    b0_tasks = extract_gen_b0_args(cases, overwrite)
 
-    hd_bet_tasks: list[tuple[Path, Path]] = [
-        (case.b0_out, case.mask_out)
-        for case in cases
-        if overwrite or not case.mask_out.exists()
-    ]
-
-    hd_bet_input, hd_bet_output = extract_hd_bet_args(hd_bet_tasks)
+    hd_bet_input, hd_bet_output = extract_hd_bet_args(cases, overwrite)
 
     if parallel:
         logging.debug("generate %s b0_mean in parallel", len(b0_tasks))
