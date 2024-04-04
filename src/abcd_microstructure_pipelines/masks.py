@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import itertools
 import logging
-import multiprocessing
+import multiprocessing.pool
 import os
 from collections.abc import Iterable
 from pathlib import Path
+from typing import NamedTuple
 
 import dipy.core.gradients
 import dipy.io
@@ -29,8 +30,9 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     :param dwi: ``_dwi.nii.gz`` input.
     :param bval: ``.bval`` input.
     :param bvec: ``.bvec`` input.
-    :param b0_out: ``.b0.nii.gz`` output.
+    :param b0_out: ``_b0.nii.gz`` output.
     """
+
     data, affine, img = dipy.io.image.load_nifti(str(dwi), return_img=True)
     bvals, bvecs = dipy.io.read_bvals_bvecs(str(bval), str(bvec))
 
@@ -43,49 +45,93 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     dipy.io.image.save_nifti(str(b0_out), b0_mean, affine, img.header)
 
 
-def recursive_generate(
-    inputs: Path, outputs: Path, overwrite: bool, parallel: bool
-) -> None:
+class Case(NamedTuple):
+    dwi: Path
+    """``_dwi.nii.gz`` input."""
+
+    bval: Path
+    """``.bval`` input."""
+
+    bvec: Path
+    """``.bvec`` input."""
+
+    b0_out: Path
+    """``_b0.nii.gz`` output."""
+
+    mask_out: Path
+    """``_mask.nii.gz`` output.
+
+    HD-BET always outputs files ending in ``_mask.nii.gz``, so this file must have that suffix. Otherwise another
+    file with that suffix would be created and ``mask_out`` will not exist.
     """
-    Recursively find and process dwi images and create hd_bet masks for each.
 
-    :param inputs: Root directory to search for ``_dwi.nii.gz`` cases.
-    :param outputs: Root directory for output. Produces ``_dwi_mask.nii.gz`` output for each case, preserving directory structure.
-    :param overwrite: If true, recompute and overwrite existing output files.
-    :param parallel: If true, compute intermediate ``.b0.nii.gz`` files in parallel. Note that HD_BET does *not* compute in parallel.
+
+def extract_hd_bet_args(tasks: list[tuple[Path, Path]]) -> tuple[list[str], list[str]]:
     """
-    b0_tasks: list[tuple[Path, Path, Path, Path]] = []  # args for gen_b0_mean
+    hd_bet expects arguments as a pair of lists, rather than a list of pairs. hd_bet also appends ``_mask`` to its
+    output filenames, and this feature cannot be disabled, so check the outputs in ``tasks`` contain this suffix and
+    choose the arguments to produce the correct output.
 
-    hd_bet_input: list[str] = []
-    hd_bet_output: list[str] = []
+    Warn and skip tasks where this is not possible.
 
-    for base in find_all_cases(inputs):
-        base_out = outputs.joinpath(base.relative_to(inputs))
+    :param tasks: list of (input, output) pairs of paths
+    :return: pair of list of valid paths (inputs, outputs)
+    """
 
-        dwi = base.with_suffix(".nii.gz")
-        bval = base.with_suffix(".bval")
-        bvec = base.with_suffix(".bvec")
+    inputs = []
+    outputs = []
 
-        b0_out = base_out.with_suffix(".b0.nii.gz")
+    for inp, outp in tasks:
+        outp_arg = outp.with_name(
+            outp.name.removesuffix("_mask.nii.gz") + ".nii.gz"
+        )  # invert hd_bet behavior.
+        outp_real = outp_arg.with_name(
+            outp_arg.name[:-7] + "_mask.nii.gz"
+        )  # match hd_bet behavior.
 
-        if overwrite or not b0_out.exists():
-            b0_tasks.append((dwi, bval, bvec, b0_out))
+        if outp_real != outp:
+            logging.warning(
+                "HD-BET will not output %r. Would output %r instead. Skipping.",
+                outp.name,
+                outp_real.name,
+            )
+            continue
 
-        # HD_BET will rename this to "_mask.nii.gz"
-        mask_out = base_out.with_suffix(".nii.gz")
-        mask_out_real = base_out.with_name(base_out.name + "_mask.nii.gz")
+        inputs.append(str(inp))
+        outputs.append(str(outp_arg))
 
-        if overwrite or not mask_out_real.exists():
-            hd_bet_input.append(str(b0_out))
-            hd_bet_output.append(str(mask_out))
+    return inputs, outputs
+
+
+def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
+    """
+    :param cases:
+    :param overwrite:
+    :param parallel:
+    """
+
+    # args for gen_b0_mean
+    b0_tasks = [
+        (case.dwi, case.bval, case.bvec, case.b0_out)
+        for case in cases
+        if overwrite or not case.b0_out.exists()
+    ]
+
+    hd_bet_tasks: list[tuple[Path, Path]] = [
+        (case.b0_out, case.mask_out)
+        for case in cases
+        if overwrite or not case.mask_out.exists()
+    ]
+
+    hd_bet_input, hd_bet_output = extract_hd_bet_args(hd_bet_tasks)
 
     if parallel:
-        logging.debug("Generate %s b0_mean in parallel", len(b0_tasks))
-        with multiprocessing.Pool() as pool:
+        logging.debug("generate %s b0_mean in parallel", len(b0_tasks))
+        with multiprocessing.pool.Pool() as pool:
             for _ in pool.starmap(gen_b0_mean, b0_tasks):
                 pass  # just consume the iterator. maybe wrap in tqdm?
     else:
-        logging.debug("Generate %s b0_mean sequentially", len(b0_tasks))
+        logging.debug("generate %s b0_mean sequentially", len(b0_tasks))
         for _ in itertools.starmap(gen_b0_mean, b0_tasks):
             pass  # just consume the iterator. maybe wrap in tqdm?
 

@@ -17,29 +17,52 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARN"))
     "-i",
     required=True,
     type=Path,
-    help="Root directory to search for ``_dwi.nii.gz`` cases.",
+    help="Root directory to search for inputs.",
 )
 @click.option(
     "--outputs",
     "-o",
     required=True,
     type=Path,
-    help="Root directory for output. Produces ``_dwi_mask.nii.gz`` output for each case, preserving directory structure.",
+    help="Root directory to write outputs.",
 )
 @click.option(
     "--overwrite",
     is_flag=True,
-    help="If true, recompute and overwrite existing output files.",
+    help="Recompute and overwrite existing output files.",
 )
 @click.option(
     "--parallel",
     "-j",
     is_flag=True,
-    help="If true, compute intermediate ``.b0.nii.gz`` files in parallel. Note that HD_BET does *not* compute in parallel.",
+    help="Compute intermediate ``<ID>_b0.nii.gz`` files in parallel.\n"
+    "Note that HD_BET does *not* compute in parallel.",
 )
 def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> None:
     """
     Recursively find and process dwi images and create hd_bet masks for each.
+
+    Searches for input files: <ID>_dwi.nii.gz, <ID>.bval, <ID>.bvec
+
+    Produces output files: <ID>_b0.nii.gz, <ID>_mask.nii.gz
+
+    Preserves directory structure in output.
     """
 
-    masks.recursive_generate(inputs, outputs, overwrite, parallel)
+    cases: list[masks.Case] = []
+
+    for dwi in inputs.rglob("*_dwi.nii.gz"):
+        base = dwi.with_name(dwi.name.removesuffix(".nii.gz"))
+        base_out = outputs.joinpath(base.relative_to(inputs))
+
+        cases.append(
+            masks.Case(
+                base.with_suffix(".nii.gz"),
+                base.with_suffix(".bval"),
+                base.with_suffix(".bvec"),
+                base_out.with_name(base_out.name + "_b0.nii.gz"),
+                base_out.with_name(base_out.name + "_mask.nii.gz"),
+            )
+        )
+
+    masks.batch_generate(cases, overwrite, parallel)
