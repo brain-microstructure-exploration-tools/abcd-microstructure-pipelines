@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib.metadata
 
 project = "abcd-microstructure-pipelines"
-copyright = "2024, Ebrahim Ebrahim"
+copyright = "2024, Kitware"
 author = "Ebrahim Ebrahim"
 version = release = importlib.metadata.version("abcdmicro")
 
