@@ -5,7 +5,7 @@ import importlib.metadata
 project = "abcd-microstructure-pipelines"
 copyright = "2024, Ebrahim Ebrahim"
 author = "Ebrahim Ebrahim"
-version = release = importlib.metadata.version("abcd_microstructure_pipelines")
+version = release = importlib.metadata.version("abcdmicro")
 
 extensions = [
     "myst_parser",

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from abcd_microstructure_pipelines import masks
+from abcdmicro import masks
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARN"))
 
