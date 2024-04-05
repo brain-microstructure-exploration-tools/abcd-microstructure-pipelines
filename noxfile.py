@@ -30,7 +30,7 @@ def pylint(session: nox.Session) -> None:
     # This needs to be installed into the package environment, and is slower
     # than a pre-commit check
     session.install(".", "pylint")
-    session.run("pylint", "abcd_microstructure_pipelines", *session.posargs)
+    session.run("pylint", "abcdmicro", *session.posargs)
 
 
 @nox.session
@@ -99,7 +99,7 @@ def build_api_docs(session: nox.Session) -> None:
         "--module-first",
         "--no-toc",
         "--force",
-        "../src/abcd_microstructure_pipelines",
+        "../src/abcdmicro",
     )
 
 
