@@ -1,5 +1,5 @@
 """
-Copyright (c) 2024 Ebrahim Ebrahim. All rights reserved.
+Copyright (c) 2024 Kitware. All rights reserved.
 
 abcd-microstructure-pipelines: Processing pipelines to extract brain microstructure from ABCD Study dMRI
 """
