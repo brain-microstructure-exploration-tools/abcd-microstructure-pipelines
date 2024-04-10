@@ -48,7 +48,7 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     bvals, bvecs = dipy.io.read_bvals_bvecs(str(bval), str(bvec))
 
     gtab = dipy.core.gradients.gradient_table(bvals, bvecs)
-    b0_mean = data[:, :, :, gtab.b0s_mask].mean(axis=3)
+    b0_mean     = data[:, :, :, gtab.b0s_mask].mean(axis=3)
 
     b0_out.parent.mkdir(parents=True, exist_ok=True)
 
