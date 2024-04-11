@@ -9,6 +9,7 @@ from typing import NamedTuple
 import dipy.core.gradients
 import dipy.io
 import dipy.io.image
+import numpy.typing as npt
 
 
 class Case(NamedTuple):
@@ -34,9 +35,24 @@ class Case(NamedTuple):
     """
 
 
+def compute_b0_mean(
+    dwi_array: npt.NDArray, bvals: npt.NDArray, bvecs: npt.NDArray
+) -> npt.NDArray:
+    """
+    Compute the mean of the b=0 images of a DWI.
+
+    :param dwi_array: DWI image array of shape (H,W,D,N) where H,W,D are spatial dimensions and there are N DWI volumes.
+    :param bvals: array of shape (N,) providing the b-values.
+    :param bvecs: array of shape (N,3) providing the b-vectors. They must be unit vectors.
+    :return: an array of shape (H,W,D) which is the mean of the b=0 images.
+    """
+    gtab = dipy.core.gradients.gradient_table(bvals, bvecs)
+    return dwi_array[:, :, :, gtab.b0s_mask].mean(axis=3)
+
+
 def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     """
-    Generate mean intensity for each voxel in the image as a single channel.
+    Compute the mean of the b=0 images of a DWI file, and save the output.
 
     :param dwi: ``_dwi.nii.gz`` input.
     :param bval: ``.bval`` input.
@@ -47,8 +63,7 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     data, affine, img = dipy.io.image.load_nifti(str(dwi), return_img=True)
     bvals, bvecs = dipy.io.read_bvals_bvecs(str(bval), str(bvec))
 
-    gtab = dipy.core.gradients.gradient_table(bvals, bvecs)
-    b0_mean = data[:, :, :, gtab.b0s_mask].mean(axis=3)
+    b0_mean = compute_b0_mean(data, bvals, bvecs)
 
     b0_out.parent.mkdir(parents=True, exist_ok=True)
 
