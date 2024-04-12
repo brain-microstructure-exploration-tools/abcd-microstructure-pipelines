@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "abcdmicro"
+name = "abcd-microstructure-pipelines"
 authors = [
   { name = "Ebrahim Ebrahim", email = "ebrahim.ebrahim@kitware.com" },
   { name = "David Allemang", email = "david.allemang@kitware.com" },
@@ -63,6 +63,12 @@ Changelog = "https://github.com/brain-microstructure-exploration-tools/abcd-micr
 
 [project.scripts]
 gen_masks = "abcdmicro.run:gen_masks"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "abcdmicro.__version__" }
 
 [tool.setuptools_scm]
 write_to = "src/abcdmicro/_version.py"

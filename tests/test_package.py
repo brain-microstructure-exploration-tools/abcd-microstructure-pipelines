@@ -6,4 +6,4 @@ import abcdmicro as m
 
 
 def test_version():
-    assert importlib.metadata.version("abcdmicro") == m.__version__
+    assert importlib.metadata.version("abcd-microstructure-pipelines") == m.__version__
