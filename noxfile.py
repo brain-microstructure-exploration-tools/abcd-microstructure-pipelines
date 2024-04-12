@@ -95,11 +95,13 @@ def build_api_docs(session: nox.Session) -> None:
     session.run(
         "sphinx-apidoc",
         "-o",
-        "api/",
+        ".",
+        "--separate",
         "--module-first",
-        "--no-toc",
+        "-d",
+        "2",
         "--force",
-        "../src/abcdmicro",
+        "../src",
     )
 
 
