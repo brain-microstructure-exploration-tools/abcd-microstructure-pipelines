@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from abcd_microstructure_pipelines.masks import compute_b0_mean
 
 
