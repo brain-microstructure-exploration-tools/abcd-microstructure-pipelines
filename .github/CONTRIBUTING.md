@@ -80,13 +80,13 @@ pytest --cov=abcd-microstructure-pipelines
 You can build the docs using:
 
 ```bash
-nox -s docs
+nox -s build_api_docs docs
 ```
 
 You can see a preview with:
 
 ```bash
-nox -s docs -- --serve
+nox -s build_api_docs docs -- --serve
 ```
 
 # Pre-commit

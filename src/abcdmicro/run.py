@@ -1,3 +1,9 @@
+"""
+.. click:: abcdmicro.run:gen_masks
+    :prog: gen_masks
+    :nested: short
+"""
+
 from __future__ import annotations
 
 import logging
@@ -41,12 +47,13 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARN"))
 def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> None:
     """
     Recursively find and process dwi images and create hd_bet masks for each.
-
-    Searches for input files: <ID>_dwi.nii.gz, <ID>.bval, <ID>.bvec
-
-    Produces output files: <ID>_b0.nii.gz, <ID>_mask.nii.gz
-
     Preserves directory structure in output.
+
+    Searches for input files: ``<ID>_dwi.nii.gz``, ``<ID>.bval``, ``<ID>.bvec``
+
+    Produces output files: ``<ID>_b0.nii.gz``, ``<ID>_mask.nii.gz``
+    \f
+    See :func:`abcdmicro.masks.batch_generate` for details.
     """
 
     cases: list[masks.Case] = []
