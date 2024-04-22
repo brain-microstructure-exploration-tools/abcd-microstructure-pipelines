@@ -54,10 +54,10 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     """
     Compute the mean of the b=0 images of a DWI file, and save the output.
 
-    :param dwi: ``_dwi.nii.gz`` input.
-    :param bval: ``.bval`` input.
-    :param bvec: ``.bvec`` input.
-    :param b0_out: ``_b0.nii.gz`` output.
+    :param dwi: path to nifti file containing DWI input
+    :param bval: path to b-values file in FSL format
+    :param bvec: path to b-vectors file in FSL format
+    :param b0_out: output path to save nifti file of the b=0 mean
     """
 
     data, affine, img = dipy.io.image.load_nifti(str(dwi), return_img=True)
