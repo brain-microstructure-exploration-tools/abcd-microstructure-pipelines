@@ -45,18 +45,18 @@ class TemporaryDwiFiles:
         affine: npt.NDArray,
         bvals: npt.NDArray,
         bvecs: npt.NDArray,
+        extension: str = "nii",
     ):
         self.dwi_data = dwi_data
         self.bvals = bvals
         self.bvecs = bvecs
         self.affine = affine
+        self.extension = extension
 
     def __enter__(self):
         self.temp_dir_context = tempfile.TemporaryDirectory()
         work_dir = Path(self.temp_dir_context.__enter__())
-        dwi_file = (
-            work_dir / "aaa.nii.gz"
-        )  # TODO do version with nii and version nii.gz
+        dwi_file = work_dir / f"aaa.{self.extension}"
         bval_file = work_dir / "aaa.bval"
         bvec_file = work_dir / "aaa.bvec"
         save_nifti(dwi_file, self.dwi_data, self.affine)
@@ -85,10 +85,11 @@ def test_compute_b0_mean(dwi_data_small_random):
     )
 
 
-def test_gen_b0_mean(dwi_data_small_random, affine_random):
+@pytest.mark.parametrize("extension", ["nii", "nii.gz"])
+def test_gen_b0_mean(dwi_data_small_random, affine_random, extension):
     dwi_data, bvals, bvecs = dwi_data_small_random
-    with TemporaryDwiFiles(dwi_data, affine_random, bvals, bvecs) as paths:
-        output_path = paths["dir"] / "out.nii.gz"  # TODO test with nii and nii.gz
+    with TemporaryDwiFiles(dwi_data, affine_random, bvals, bvecs, extension) as paths:
+        output_path = paths["dir"] / "out.nii"
         gen_b0_mean(paths["dwi"], paths["bval"], paths["bvec"], output_path)
         output_b0_mean, affine = load_nifti(output_path)
         assert affine == pytest.approx(affine_random)  # test that affine is preserved
