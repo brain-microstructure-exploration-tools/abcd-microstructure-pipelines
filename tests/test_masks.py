@@ -9,7 +9,13 @@ import pytest
 import scipy.linalg
 from dipy.io.image import load_nifti, save_nifti
 
-from abcdmicro.masks import compute_b0_mean, gen_b0_mean
+from abcdmicro.masks import (
+    Case,
+    compute_b0_mean,
+    extract_gen_b0_args,
+    extract_hd_bet_args,
+    gen_b0_mean,
+)
 
 
 @pytest.fixture()
@@ -95,3 +101,99 @@ def test_gen_b0_mean(dwi_data_small_random, affine_random, extension):
         assert affine == pytest.approx(affine_random)  # test that affine is preserved
         expected_b0_mean = dwi_data[..., np.array(bvals) == 0].mean(axis=-1)
         assert output_b0_mean == pytest.approx(expected_b0_mean)
+
+
+@pytest.mark.parametrize("extension", ["nii.gz"])  # TODO: add nii extension here
+def test_extract_hd_bet_args(extension):
+    cases = [
+        Case(
+            dwi=Path(f"1.{extension}"),
+            bval=Path("2.bval"),
+            bvec=Path("3.bvec"),
+            b0_out=Path(f"4.{extension}"),
+            mask_out=Path(f"5_mask.{extension}"),
+        ),
+        Case(
+            dwi=Path(f"a.{extension}"),
+            bval=Path("b.bval"),
+            bvec=Path("c.bvec"),
+            b0_out=Path(f"d.{extension}"),
+            mask_out=Path(f"e_mask.{extension}"),
+        ),
+    ]
+    inputs, outputs = extract_hd_bet_args(cases, overwrite=True)
+    assert inputs == [f"4.{extension}", f"d.{extension}"]
+    assert outputs == [f"5.{extension}", f"e.{extension}"]
+
+
+def test_extract_hd_bet_args_no_overwrite():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        existing_mask_file = Path(temp_dir) / "e_mask.nii.gz"
+        existing_mask_file.touch()
+        cases = [
+            Case(
+                dwi=Path("1.nii.gz"),
+                bval=Path("2.bval"),
+                bvec=Path("3.bvec"),
+                b0_out=Path("4.nii.gz"),
+                mask_out=Path("5_mask.nii.gz"),
+            ),
+            Case(
+                dwi=Path("a.nii.gz"),
+                bval=Path("b.bval"),
+                bvec=Path("c.bvec"),
+                b0_out=Path("d.nii.gz"),
+                mask_out=existing_mask_file,
+            ),
+        ]
+        inputs, outputs = extract_hd_bet_args(cases, overwrite=False)
+        assert inputs == ["4.nii.gz"]
+        assert outputs == ["5.nii.gz"]
+
+
+def test_extract_hd_bet_args_warn_bad_mask_name(caplog):
+    cases = [
+        Case(
+            dwi=Path("1.nii.gz"),
+            bval=Path("2.bval"),
+            bvec=Path("3.bvec"),
+            b0_out=Path("4.nii.gz"),
+            mask_out=Path("5_mask.nii.gz"),
+        ),
+        Case(
+            dwi=Path("a.nii.gz"),
+            bval=Path("b.bval"),
+            bvec=Path("c.bvec"),
+            b0_out=Path("d.nii.gz"),
+            mask_out=Path("e_msak.nii.gz"),  # note misspelled "msak"
+        ),
+    ]
+    extract_hd_bet_args(cases, overwrite=True)
+    assert "Skipping" in caplog.text
+
+
+def test_extract_gen_b0_args():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        existing_b0_out = Path(temp_dir) / "d.nii.gz"
+        existing_b0_out.touch()
+        cases = [
+            Case(
+                dwi=Path("1.nii.gz"),
+                bval=Path("2.bval"),
+                bvec=Path("3.bvec"),
+                b0_out=Path("4.nii.gz"),
+                mask_out=Path("5_mask.nii.gz"),
+            ),
+            Case(
+                dwi=Path("a.nii.gz"),
+                bval=Path("b.bval"),
+                bvec=Path("c.bvec"),
+                b0_out=existing_b0_out,
+                mask_out=Path("e_mask.nii.gz"),
+            ),
+        ]
+        args = extract_gen_b0_args(cases, overwrite=False)
+        assert (
+            len(args) == 1
+        )  # We should skip the second case because the output exists
+        assert tuple(map(str, args[0])) == ("1.nii.gz", "2.bval", "3.bvec", "4.nii.gz")
