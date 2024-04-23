@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 import numpy.typing as npt
@@ -43,45 +44,31 @@ def affine_random():
     return affine
 
 
-class TemporaryDwiFiles:
-    """Context manager that creates a temporary directory and writes DWI data into it."""
+class DwiFiles(NamedTuple):
+    dwi: Path
+    bval: Path
+    bvec: Path
 
-    def __init__(
-        self,
-        dwi_data: npt.NDArray,
-        affine: npt.NDArray,
-        bvals: npt.NDArray,
-        bvecs: npt.NDArray,
-        extension: str = "nii",
-    ):
-        self.dwi_data = dwi_data
-        self.bvals = bvals
-        self.bvecs = bvecs
-        self.affine = affine
-        self.extension = extension
 
-    def __enter__(self):
-        self.temp_dir_context = tempfile.TemporaryDirectory()
-        work_dir = Path(self.temp_dir_context.__enter__())
-        dwi_file = work_dir / f"aaa.{self.extension}"
-        bval_file = work_dir / "aaa.bval"
-        bvec_file = work_dir / "aaa.bvec"
-        save_nifti(dwi_file, self.dwi_data, self.affine)
-        with bval_file.open("w") as f:
-            print(" ".join(map(str, self.bvals)), file=f, end="")
-        with bvec_file.open("w") as f:
-            for coord in self.bvecs.T:
-                print(" ".join(map(str, coord)), file=f, end="\n")
+def write_dwi_files(
+    work_dir: Path,
+    dwi_data: npt.NDArray,
+    affine: npt.NDArray,
+    bvals: npt.NDArray,
+    bvecs: npt.NDArray,
+    extension: str = "nii",
+):
+    dwi_file = work_dir / f"aaa.{extension}"
+    bval_file = work_dir / "aaa.bval"
+    bvec_file = work_dir / "aaa.bvec"
+    save_nifti(dwi_file, dwi_data, affine)
+    with bval_file.open("w") as f:
+        print(" ".join(map(str, bvals)), file=f, end="")
+    with bvec_file.open("w") as f:
+        for coord in bvecs.T:
+            print(" ".join(map(str, coord)), file=f, end="\n")
 
-        return {
-            "dir": work_dir,
-            "dwi": dwi_file,
-            "bval": bval_file,
-            "bvec": bvec_file,
-        }
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.temp_dir_context.__exit__(exc_type, exc_val, exc_tb)
+    return DwiFiles(dwi=dwi_file, bval=bval_file, bvec=bvec_file)
 
 
 def test_compute_b0_mean(dwi_data_small_random):
@@ -95,9 +82,12 @@ def test_compute_b0_mean(dwi_data_small_random):
 @pytest.mark.parametrize("extension", ["nii", "nii.gz"])
 def test_gen_b0_mean(dwi_data_small_random, affine_random, extension):
     dwi_data, bvals, bvecs = dwi_data_small_random
-    with TemporaryDwiFiles(dwi_data, affine_random, bvals, bvecs, extension) as paths:
-        output_path = paths["dir"] / "out.nii"
-        gen_b0_mean(paths["dwi"], paths["bval"], paths["bvec"], output_path)
+    with tempfile.TemporaryDirectory() as work_dir:
+        paths = write_dwi_files(
+            Path(work_dir), dwi_data, affine_random, bvals, bvecs, extension
+        )
+        output_path = Path(work_dir) / f"out.{extension}"
+        gen_b0_mean(paths.dwi, paths.bval, paths.bvec, output_path)
         output_b0_mean, affine = load_nifti(output_path)
         assert affine == pytest.approx(affine_random)  # test that affine is preserved
         expected_b0_mean = dwi_data[..., np.array(bvals) == 0].mean(axis=-1)
@@ -205,20 +195,21 @@ def test_batch_generate(
     mocker, extension, parallel, dwi_data_small_random, affine_random
 ):
     dwi_data, bvals, bvecs = dwi_data_small_random
-    with TemporaryDwiFiles(
-        dwi_data, affine_random, bvals, bvecs, extension
-    ) as input_paths:
-        b0_out_path = input_paths["dir"] / f"b0mean.{extension}"
-        mask_out_path = input_paths["dir"] / f"aaa_mask.{extension}"
+    with tempfile.TemporaryDirectory() as work_dir:
+        input_paths = write_dwi_files(
+            Path(work_dir), dwi_data, affine_random, bvals, bvecs, extension
+        )
+        b0_out_path = Path(work_dir) / f"b0mean.{extension}"
+        mask_out_path = Path(work_dir) / f"aaa_mask.{extension}"
 
         mock_run_hd_bet = mocker.patch("abcdmicro.masks.run_hd_bet")
 
         batch_generate(
             cases=[
                 Case(
-                    dwi=input_paths["dwi"],
-                    bval=input_paths["bval"],
-                    bvec=input_paths["bvec"],
+                    dwi=input_paths.dwi,
+                    bval=input_paths.bval,
+                    bvec=input_paths.bvec,
                     b0_out=b0_out_path,
                     mask_out=mask_out_path,
                 )
