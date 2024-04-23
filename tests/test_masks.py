@@ -11,6 +11,7 @@ from dipy.io.image import load_nifti, save_nifti
 
 from abcdmicro.masks import (
     Case,
+    batch_generate,
     compute_b0_mean,
     extract_gen_b0_args,
     extract_hd_bet_args,
@@ -197,3 +198,34 @@ def test_extract_gen_b0_args():
             len(args) == 1
         )  # We should skip the second case because the output exists
         assert tuple(map(str, args[0])) == ("1.nii.gz", "2.bval", "3.bvec", "4.nii.gz")
+
+
+@pytest.mark.parametrize(("extension", "parallel"), [("nii.gz", True), ("nii", False)])
+def test_batch_generate(
+    mocker, extension, parallel, dwi_data_small_random, affine_random
+):
+    dwi_data, bvals, bvecs = dwi_data_small_random
+    with TemporaryDwiFiles(
+        dwi_data, affine_random, bvals, bvecs, extension
+    ) as input_paths:
+        b0_out_path = input_paths["dir"] / f"b0mean.{extension}"
+        mask_out_path = input_paths["dir"] / f"aaa_mask.{extension}"
+
+        mock_run_hd_bet = mocker.patch("abcdmicro.masks.run_hd_bet")
+
+        batch_generate(
+            cases=[
+                Case(
+                    dwi=input_paths["dwi"],
+                    bval=input_paths["bval"],
+                    bvec=input_paths["bvec"],
+                    b0_out=b0_out_path,
+                    mask_out=mask_out_path,
+                )
+            ],
+            overwrite=False,
+            parallel=parallel,
+        )
+
+        assert b0_out_path.exists()  # b=0 mean should have been written out
+        mock_run_hd_bet.assert_called_once()  # HD_BET should have been called

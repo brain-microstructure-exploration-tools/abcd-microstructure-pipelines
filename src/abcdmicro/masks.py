@@ -140,6 +140,24 @@ def extract_gen_b0_args(
     return args
 
 
+def run_hd_bet(
+    hd_bet_input: list[str], hd_bet_output: list[str], overwrite: bool
+) -> None:
+    """
+    Run HD-BET on the given input files. The expensive HD-BET import and run call are isolated in this function.
+
+    :param hd_bet_input: passed to the `mri_fnames` parameter of HD_BET.run.run_hd_bet
+    :param hd_bet_output: passed to the `output_fnames` parameter of HD_BET.run.run_hd_bet
+    :param overwrite: passed to the `overwrite` parameter of HD_BET.run.run_hd_bet
+    """
+    logging.debug("Loading HD_BET")
+    # don't import till now since it takes time to initialize.
+    import HD_BET.run  # pylint: disable=import-outside-toplevel
+
+    logging.debug("Generate %s masks", len(hd_bet_input))
+    HD_BET.run.run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
+
+
 def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
     """
     Generate ``b0_out`` and ``mask_out`` for each case. See ``extract_hd_bet_args`` for notes on HD_BET.
@@ -163,9 +181,4 @@ def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
         for _ in itertools.starmap(gen_b0_mean, b0_tasks):
             pass  # just consume the iterator. maybe wrap in tqdm?
 
-    logging.debug("Loading HD_BET")
-    # don't import till now since it takes time to initialize.
-    import HD_BET.run  # pylint: disable=import-outside-toplevel
-
-    logging.debug("Generate %s masks", len(hd_bet_input))
-    HD_BET.run.run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
+    run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
