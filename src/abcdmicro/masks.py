@@ -140,10 +140,11 @@ def extract_gen_b0_args(
     return args
 
 
-def run_hd_bet(
+def _run_hd_bet(
     hd_bet_input: list[str], hd_bet_output: list[str], overwrite: bool
 ) -> None:
     """
+    Functional wrapper of HD_BET.run.run_hd_bet.
     Run HD-BET on the given input files. The expensive HD-BET import and run call are isolated in this function.
 
     :param hd_bet_input: passed to the `mri_fnames` parameter of HD_BET.run.run_hd_bet
@@ -181,4 +182,4 @@ def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
         for _ in itertools.starmap(gen_b0_mean, b0_tasks):
             pass  # just consume the iterator. maybe wrap in tqdm?
 
-    run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
+    _run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)

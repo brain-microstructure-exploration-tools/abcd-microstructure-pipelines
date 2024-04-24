@@ -202,7 +202,7 @@ def test_batch_generate(
         b0_out_path = Path(work_dir) / f"b0mean.{extension}"
         mask_out_path = Path(work_dir) / f"aaa_mask.{extension}"
 
-        mock_run_hd_bet = mocker.patch("abcdmicro.masks.run_hd_bet")
+        mock_run_hd_bet = mocker.patch("abcdmicro.masks._run_hd_bet")
 
         batch_generate(
             cases=[
