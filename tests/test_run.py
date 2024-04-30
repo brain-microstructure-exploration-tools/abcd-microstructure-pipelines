@@ -28,7 +28,6 @@ def test_gen_masks(mocker, extension):
             (case_dir / f"{img_name}.bval").touch()
             (case_dir / f"{img_name}.bvec").touch()
 
-        # ipdb.set_trace()
         runner.invoke(
             gen_masks, f"--inputs {input_dir} --outputs {output_dir} --overwrite"
         )
@@ -37,3 +36,18 @@ def test_gen_masks(mocker, extension):
         assert overwrite
         assert not parallel
         assert len(cases) == 2  # ensure both cases were found for processing
+
+
+def test_gen_masks_nonexistent_inputs():
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as work_dir:
+        input_dir = Path(work_dir) / "dir_that_does_not_exist"
+        output_dir = Path(work_dir) / "outputs"
+        output_dir.mkdir()
+
+        # We will check that an exception is raised, but we cannot use "with pytests.raises..."
+        # because the clock CliRunner swallows the exception. We have to check the result.
+        click_result = runner.invoke(
+            gen_masks, f"--inputs {input_dir} --outputs {output_dir} --overwrite"
+        )
+        assert isinstance(click_result.exception, FileNotFoundError)

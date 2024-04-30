@@ -58,6 +58,10 @@ def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> N
 
     cases: list[masks.Case] = []
 
+    if not inputs.exists():
+        error_message = f"Input directory {inputs} not found."
+        raise FileNotFoundError(error_message)
+
     for dwi in inputs.rglob("*_dwi.nii.gz"):
         base = dwi.with_name(dwi.name.removesuffix(".nii.gz"))
         base_out = outputs.joinpath(base.relative_to(inputs))
