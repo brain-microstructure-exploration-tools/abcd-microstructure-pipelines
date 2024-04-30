@@ -88,7 +88,10 @@ def test_gen_b0_mean(dwi_data_small_random, affine_random, extension):
         )
         output_path = Path(work_dir) / f"out.{extension}"
         gen_b0_mean(paths.dwi, paths.bval, paths.bvec, output_path)
-        output_b0_mean, affine = load_nifti(output_path)
+        output_b0_mean, affine = load_nifti(
+            output_path,
+            as_ndarray=False,  # This prevents the array data from keeping the file open on windows
+        )
         assert affine == pytest.approx(affine_random)  # test that affine is preserved
         expected_b0_mean = dwi_data[..., np.array(bvals) == 0].mean(axis=-1)
         assert output_b0_mean == pytest.approx(expected_b0_mean)
