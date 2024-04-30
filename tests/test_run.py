@@ -29,7 +29,8 @@ def test_gen_masks(mocker, extension):
             (case_dir / f"{img_name}.bvec").touch()
 
         runner.invoke(
-            gen_masks, f"--inputs {input_dir} --outputs {output_dir} --overwrite"
+            gen_masks,
+            ["--inputs", str(input_dir), "--outputs", str(output_dir), "--overwrite"],
         )
         mock_batch_generate.assert_called_once()
         cases, overwrite, parallel = mock_batch_generate.call_args.args
@@ -48,6 +49,7 @@ def test_gen_masks_nonexistent_inputs():
         # We will check that an exception is raised, but we cannot use "with pytests.raises..."
         # because the clock CliRunner swallows the exception. We have to check the result.
         click_result = runner.invoke(
-            gen_masks, f"--inputs {input_dir} --outputs {output_dir} --overwrite"
+            gen_masks,
+            ["--inputs", str(input_dir), "--outputs", str(output_dir), "--overwrite"],
         )
         assert isinstance(click_result.exception, FileNotFoundError)
