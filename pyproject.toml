@@ -41,10 +41,12 @@ dependencies = [
 test = [
   "pytest >=6",
   "pytest-cov >=3",
+  "pytest-mock >=3.14",
 ]
 dev = [
   "pytest >=6",
   "pytest-cov >=3",
+  "pytest-mock >=3.14",
   "pre-commit",
 ]
 docs = [

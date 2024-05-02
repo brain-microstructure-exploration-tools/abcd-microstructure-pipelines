@@ -54,10 +54,10 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     """
     Compute the mean of the b=0 images of a DWI file, and save the output.
 
-    :param dwi: ``_dwi.nii.gz`` input.
-    :param bval: ``.bval`` input.
-    :param bvec: ``.bvec`` input.
-    :param b0_out: ``_b0.nii.gz`` output.
+    :param dwi: path to nifti file containing DWI input
+    :param bval: path to b-values file in FSL format
+    :param bvec: path to b-vectors file in FSL format
+    :param b0_out: output path to save nifti file of the b=0 mean
     """
 
     data, affine, img = dipy.io.image.load_nifti(str(dwi), return_img=True)
@@ -140,6 +140,25 @@ def extract_gen_b0_args(
     return args
 
 
+def _run_hd_bet(
+    hd_bet_input: list[str], hd_bet_output: list[str], overwrite: bool
+) -> None:
+    """
+    Functional wrapper of HD_BET.run.run_hd_bet.
+    Run HD-BET on the given input files. The expensive HD-BET import and run call are isolated in this function.
+
+    :param hd_bet_input: passed to the `mri_fnames` parameter of HD_BET.run.run_hd_bet
+    :param hd_bet_output: passed to the `output_fnames` parameter of HD_BET.run.run_hd_bet
+    :param overwrite: passed to the `overwrite` parameter of HD_BET.run.run_hd_bet
+    """
+    logging.debug("Loading HD_BET")
+    # don't import till now since it takes time to initialize.
+    import HD_BET.run  # pylint: disable=import-outside-toplevel
+
+    logging.debug("Generate %s masks", len(hd_bet_input))
+    HD_BET.run.run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
+
+
 def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
     """
     Generate ``b0_out`` and ``mask_out`` for each case. See ``extract_hd_bet_args`` for notes on HD_BET.
@@ -163,9 +182,4 @@ def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
         for _ in itertools.starmap(gen_b0_mean, b0_tasks):
             pass  # just consume the iterator. maybe wrap in tqdm?
 
-    logging.debug("Loading HD_BET")
-    # don't import till now since it takes time to initialize.
-    import HD_BET.run  # pylint: disable=import-outside-toplevel
-
-    logging.debug("Generate %s masks", len(hd_bet_input))
-    HD_BET.run.run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
+    _run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
