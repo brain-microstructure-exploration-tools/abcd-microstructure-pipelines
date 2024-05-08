@@ -22,3 +22,11 @@
 [rtd-link]:                 https://abcd-microstructure-pipelines.readthedocs.io/en/latest/?badge=latest
 
 <!-- prettier-ignore-end -->
+
+
+This project is in an early phase and under active development.
+
+The Python package abcdmicro will have the components needed for constructing pipelines to extract brain microstructure from ABCD Study dMRI. Eventually it will have pre-built pipelines as well.
+
+This work is supported by the National Institutes of Health under Award Number 1R21MH132982. The content is solely the responsibility of the authors and does not necessarily represent the official views of the National Institutes of Health.
+
