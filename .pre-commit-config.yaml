@@ -41,7 +41,7 @@ repos:
         exclude: "^.copier-answers.yml$"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.4.4"
+    rev: "v0.4.5"
     hooks:
       - id: ruff
         args: ["--fix", "--show-fixes"]
@@ -58,7 +58,7 @@ repos:
           - click
 
   - repo: https://github.com/codespell-project/codespell
-    rev: "v2.2.6"
+    rev: "v2.3.0"
     hooks:
       - id: codespell
 
@@ -76,13 +76,13 @@ repos:
         exclude: .pre-commit-config.yaml
 
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: "v0.17"
+    rev: "v0.18"
     hooks:
       - id: validate-pyproject
         additional_dependencies: ["validate-pyproject-schema-store[all]"]
 
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: "0.28.3"
+    rev: "0.28.4"
     hooks:
       - id: check-dependabot
       - id: check-github-workflows
