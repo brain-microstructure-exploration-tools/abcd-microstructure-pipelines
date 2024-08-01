@@ -4,12 +4,12 @@ from abcdmicro.resource import BvalResource, BvecResource, VolumeResource
 
 
 class NiftiVolumeResrouce(VolumeResource):
-    pass
+    """A volume or volume stack that is saved to disk in the nifti file format."""
 
 
 class FslBvalResource(BvalResource):
-    pass
+    """A b-value list that is saved to disk in the FSL text file format."""
 
 
 class FslBvecResource(BvecResource):
-    pass
+    """A b-vector list that is saved to disk in the FSL text file format."""
