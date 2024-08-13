@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itk
 import numpy as np
 import pytest
 
@@ -8,6 +9,7 @@ from abcdmicro.resource import (
     BvecResource,
     InMemoryBvalResource,
     InMemoryBvecResource,
+    InMemoryVolumeResource,
     VolumeResource,
 )
 
@@ -60,3 +62,15 @@ def test_bval_inmemory_get(bval_array):
 def test_bvec_inmemory_get(bvec_array):
     bvec = InMemoryBvecResource(array=bvec_array)
     assert (bvec.get() == bvec_array).all()
+
+
+def test_volume_inmemory_get_array(volume_array):
+    vol = InMemoryVolumeResource(image=itk.image_from_array(volume_array))
+    assert (vol.get_array() == volume_array).all()
+
+
+def test_volume_inmemory_get_metadata(volume_array):
+    image = itk.image_from_array(volume_array)
+    image["bleh"] = "some_info"
+    vol = InMemoryVolumeResource(image=image)
+    assert vol.get_metadata()["bleh"] == "some_info"
