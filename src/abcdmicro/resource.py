@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
+import itk
 import numpy as np
 from numpy.typing import NDArray
 
@@ -13,14 +15,28 @@ class VolumeResource(ABC):
     and have associated header information describing a patient coordinate system."""
 
     @abstractmethod
-    def get_array(self) -> NDArray[np.floating]:
+    def get_array(self) -> NDArray[Any]:
         """Get the underlying volume data array"""
 
+    @abstractmethod
+    def get_metadata(self) -> dict[Any, Any]:
+        """Get the volume image metadata"""
 
+
+@dataclass
 class InMemoryVolumeResource(VolumeResource):
     """A volume resource that is loaded into memory.
     An n-D array where n >= 3 and where three of the dimensions are spatial
     and have associated header information describing a patient coordinate system."""
+
+    image: itk.Image
+    """The underlying ITK image of the volume"""
+
+    def get_array(self) -> NDArray[Any]:
+        return itk.array_view_from_image(self.image)
+
+    def get_metadata(self) -> dict[Any, Any]:
+        return dict(self.image)
 
 
 class BvalResource(ABC):
