@@ -64,6 +64,7 @@ def test_bvec_inmemory_get(bvec_array):
     assert (bvec.get() == bvec_array).all()
 
 
+@pytest.mark.filterwarnings("ignore:builtin type [sS]wig.* has no __module__ attribute")
 def test_volume_inmemory_get_array(volume_array):
     vol = InMemoryVolumeResource(image=itk.image_from_array(volume_array))
     assert (vol.get_array() == volume_array).all()
