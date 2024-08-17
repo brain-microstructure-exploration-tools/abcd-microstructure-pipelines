@@ -51,5 +51,5 @@ def test_nifti_volume_resource(volume_array):
                 ]
             ),
         )
-        volume_resource = NiftiVolumeResrouce(path=volume_file)  # type: ignore[abstract]
+        volume_resource = NiftiVolumeResrouce(path=volume_file)
         assert np.allclose(volume_resource.get_array(), volume_array)
