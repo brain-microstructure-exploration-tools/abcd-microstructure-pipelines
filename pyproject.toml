@@ -32,7 +32,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "click >=8.1",
-  "numpy >=1.26, <=1.26.4",
+  "numpy >=1.26, <=2.1.0",
   "dipy >=1.9",
   "HD_BET @ https://github.com/brain-microstructure-exploration-tools/HD-BET/archive/refs/tags/v1.0.0.zip#sha256=d48908854207b839552f2059c9cf2a48819b847bc1eb0ea4445d1d589471a1f5",
 ]
