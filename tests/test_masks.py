@@ -20,7 +20,7 @@ from abcdmicro.masks import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def dwi_data_small_random():
     rng = np.random.default_rng(1337)
     dwi_data = rng.random(size=(3, 4, 5, 6))
@@ -30,7 +30,7 @@ def dwi_data_small_random():
     return dwi_data, bvals, bvecs
 
 
-@pytest.fixture()
+@pytest.fixture
 def affine_random():
     rng = np.random.default_rng(7562)
     affine = np.eye(4, dtype=float)
