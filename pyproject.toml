@@ -51,7 +51,7 @@ dev = [
 ]
 docs = [
   "sphinx>=7.0",
-  "sphinx-autobuild==2024.2.4",
+  "sphinx-autobuild==2024.9.19",
   "myst_parser>=0.13",
   "sphinx_copybutton",
   "sphinx_autodoc_typehints",
