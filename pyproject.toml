@@ -33,7 +33,6 @@ dynamic = ["version"]
 dependencies = [
   "click >=8.1",
   "numpy >=1.26, <=1.26.4",
-  "itk",
   "dipy >=1.9",
   "pandas",
   "HD_BET @ https://github.com/brain-microstructure-exploration-tools/HD-BET/archive/refs/tags/v1.0.0.zip#sha256=d48908854207b839552f2059c9cf2a48819b847bc1eb0ea4445d1d589471a1f5",
@@ -147,6 +146,7 @@ ignore = [
   "PLR09",    # Too many <...>
   "PLR2004",  # Magic value used in comparison
   "ISC001",   # Conflicts with formatter
+  "PLC3002", # Direct call of lambda -- this can often aid code clarity in my opinion
 ]
 isort.required-imports = ["from __future__ import annotations"]
 # Uncomment if using a _compat.typing backport
