@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-import itk
 import numpy as np
 from numpy.typing import NDArray
 
@@ -15,11 +14,15 @@ class VolumeResource(ABC):
     and have associated header information describing a patient coordinate system."""
 
     @abstractmethod
-    def get_array(self) -> NDArray[Any]:
+    def get_array(self) -> NDArray[np.number]:
         """Get the underlying volume data array"""
 
     @abstractmethod
-    def get_metadata(self) -> dict[Any, Any]:
+    def get_affine(self) -> NDArray[np.floating]:
+        """Get the 4x4 affine matrix that maps index space to patient/scanner space"""
+
+    @abstractmethod
+    def get_metadata(self) -> dict[str, Any]:
         """Get the volume image metadata"""
 
 
@@ -29,14 +32,18 @@ class InMemoryVolumeResource(VolumeResource):
     An n-D array where n >= 3 and where three of the dimensions are spatial
     and have associated header information describing a patient coordinate system."""
 
-    image: itk.Image
-    """The underlying ITK image of the volume"""
+    array: NDArray[np.number]
+    affine: NDArray[np.floating] = field(default_factory=lambda: np.eye(4))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def get_array(self) -> NDArray[Any]:
-        return itk.array_view_from_image(self.image)
+        return self.array
+
+    def get_affine(self) -> NDArray[np.floating]:
+        return self.affine
 
     def get_metadata(self) -> dict[Any, Any]:
-        return dict(self.image)
+        return self.metadata
 
 
 class BvalResource(ABC):
