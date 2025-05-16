@@ -46,7 +46,7 @@ def compute_b0_mean(
     :param bvecs: array of shape (N,3) providing the b-vectors. They must be unit vectors.
     :return: an array of shape (H,W,D) which is the mean of the b=0 images.
     """
-    gtab = dipy.core.gradients.gradient_table(bvals, bvecs)
+    gtab = dipy.core.gradients.gradient_table(bvals=bvals, bvecs=bvecs)
     return dwi_array[:, :, :, gtab.b0s_mask].mean(axis=3)
 
 
@@ -68,7 +68,7 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     b0_out.parent.mkdir(parents=True, exist_ok=True)
 
     logging.debug("generate %r", b0_out)
-    dipy.io.image.save_nifti(str(b0_out), b0_mean, affine, img.header)
+    dipy.io.image.save_nifti(str(b0_out), b0_mean, affine, hdr=img.header)
 
 
 def extract_hd_bet_args(
