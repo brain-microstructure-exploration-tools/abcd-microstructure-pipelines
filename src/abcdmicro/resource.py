@@ -72,7 +72,7 @@ class BvecResource(ABC):
 
     @abstractmethod
     def get(self) -> NDArray[np.floating]:
-        """Get the underlying array of b-vectors"""
+        """Get the underlying array of b-vectors of shape (N,3)"""
 
 
 @dataclass

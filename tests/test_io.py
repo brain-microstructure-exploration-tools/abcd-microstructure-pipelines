@@ -1,14 +1,23 @@
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
+import nibabel as nib
 import numpy as np
 import pytest
 from dipy.io.image import save_nifti
 from scipy.linalg import expm
 
-from abcdmicro.io import NiftiVolumeResrouce
+from abcdmicro.io import (
+    FslBvalResource,
+    FslBvecResource,
+    NiftiVolumeResource,
+)
+from abcdmicro.resource import (
+    InMemoryBvalResource,
+    InMemoryBvecResource,
+    InMemoryVolumeResource,
+)
 
 
 @pytest.fixture
@@ -47,15 +56,49 @@ def random_affine() -> np.ndarray:
     return affine
 
 
+@pytest.fixture
+def small_nifti_header():
+    hdr = nib.Nifti1Header()
+    hdr["descrip"] = b"an abcdmicro unit test header description"
+    return hdr
+
+
 @pytest.mark.filterwarnings("ignore:builtin type [sS]wig.* has no __module__ attribute")
-def test_nifti_volume_resource(volume_array, random_affine):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        volume_file = Path(tmpdir) / "volume_file.nii"
-        save_nifti(
-            fname=volume_file,
-            data=volume_array,
-            affine=random_affine,
-        )
-        volume_resource = NiftiVolumeResrouce(path=volume_file)
-        assert np.allclose(volume_resource.get_array(), volume_array)
-        assert np.allclose(volume_resource.get_affine(), random_affine)
+def test_nifti_volume_resource(volume_array, random_affine, tmp_path):
+    volume_file = Path(tmp_path) / "volume_file.nii"
+    save_nifti(
+        fname=volume_file,
+        data=volume_array,
+        affine=random_affine,
+    )
+    volume_resource = NiftiVolumeResource(path=volume_file)
+    assert np.allclose(volume_resource.get_array(), volume_array)
+    assert np.allclose(volume_resource.get_affine(), random_affine)
+
+
+def test_nifti_volume_resource_save_load(
+    volume_array, random_affine, small_nifti_header, tmp_path
+):
+    vol_mem = InMemoryVolumeResource(
+        array=volume_array, affine=random_affine, metadata=dict(small_nifti_header)
+    )
+    path = tmp_path / "test.nii.gz"
+    vol_disk = NiftiVolumeResource.save(vol_mem, path)
+    vol_mem2 = vol_disk.load()
+    assert np.allclose(vol_mem.get_array(), vol_mem2.get_array())
+    assert np.allclose(vol_mem.get_affine(), vol_mem2.get_affine())
+    assert vol_mem.get_metadata()["descrip"] == vol_mem2.get_metadata()["descrip"]
+
+
+def test_fsl_bval_resource_save_load(bval_array, tmp_path):
+    path = tmp_path / "test.bval"
+    bval_mem = InMemoryBvalResource(bval_array)
+    bval_mem2 = FslBvalResource.save(bval_mem, path).load()
+    assert np.allclose(bval_mem.get(), bval_mem2.get())
+
+
+def test_fsl_bvec_resource_save_load(bvec_array, tmp_path):
+    path = tmp_path / "test.bvec"
+    bvec_mem = InMemoryBvecResource(bvec_array)
+    bvec_mem2 = FslBvecResource.save(bvec_mem, path).load()
+    assert np.allclose(bvec_mem.get(), bvec_mem2.get())
