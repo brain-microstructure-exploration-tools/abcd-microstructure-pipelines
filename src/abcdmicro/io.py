@@ -6,7 +6,8 @@ from typing import Any
 
 import numpy as np
 from dipy.io.gradients import read_bvals_bvecs
-from dipy.io.image import load_nifti
+from dipy.io.image import load_nifti, save_nifti
+from nibabel.nifti1 import Nifti1Header
 from numpy.typing import NDArray
 
 from abcdmicro.resource import (
@@ -20,7 +21,7 @@ from abcdmicro.resource import (
 
 
 @dataclass
-class NiftiVolumeResrouce(VolumeResource):
+class NiftiVolumeResource(VolumeResource):
     """A volume or volume stack that is saved to disk in the nifti file format."""
 
     path: Path
@@ -42,6 +43,20 @@ class NiftiVolumeResrouce(VolumeResource):
     def get_metadata(self) -> dict[str, Any]:
         return self.load().get_metadata()
 
+    @staticmethod
+    def save(vol: VolumeResource, path: Path) -> NiftiVolumeResource:
+        """Save volume data to a path, creating a NiftiVolumeResource."""
+        header = Nifti1Header()
+        for key, val in vol.get_metadata().items():
+            header[key] = val
+        save_nifti(
+            fname=path,
+            data=vol.get_array(),
+            affine=vol.get_affine(),
+            hdr=header,
+        )
+        return NiftiVolumeResource(path=path)
+
 
 @dataclass
 class FslBvalResource(BvalResource):
@@ -52,11 +67,17 @@ class FslBvalResource(BvalResource):
 
     def load(self) -> InMemoryBvalResource:
         """Load b-values into memory"""
-        bvals_array, _ = read_bvals_bvecs(self.path, None)
+        bvals_array, _ = read_bvals_bvecs(str(self.path), None)
         return InMemoryBvalResource(bvals_array)
 
     def get(self) -> NDArray[np.floating]:
         return self.load().get()
+
+    @staticmethod
+    def save(bvals: BvalResource, path: Path) -> FslBvalResource:
+        """Save data to a path, creating a FslBvalResource."""
+        np.savetxt(path, bvals.get(), fmt="%g")
+        return FslBvalResource(path)
 
 
 @dataclass
@@ -68,8 +89,19 @@ class FslBvecResource(BvecResource):
 
     def load(self) -> InMemoryBvecResource:
         """Load b-vectors into memory"""
-        _, bvecs_array = read_bvals_bvecs(None, self.path)
+        _, bvecs_array = read_bvals_bvecs(None, str(self.path))
         return InMemoryBvecResource(bvecs_array)
 
     def get(self) -> NDArray[np.floating]:
         return self.load().get()
+
+    @staticmethod
+    def save(bvecs: BvecResource, path: Path) -> FslBvecResource:
+        """Save data to a path, creating a FslBvecResource."""
+        np.savetxt(
+            path,
+            bvecs.get().T,  # transpose (N,3) to (3,N) for writing
+            fmt="%.6f",
+            delimiter=" ",
+        )
+        return FslBvecResource(path)
