@@ -10,8 +10,14 @@ from abcdmicro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryVolumeResource,
+    Resource,
     VolumeResource,
 )
+
+
+def test_resource_abstractness():
+    with pytest.raises(TypeError):
+        Resource()  # type: ignore[abstract]
 
 
 def test_bval_abstractness():

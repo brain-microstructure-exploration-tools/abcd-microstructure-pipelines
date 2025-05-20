@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from dipy.io.gradients import read_bvals_bvecs
@@ -23,6 +23,8 @@ from abcdmicro.resource import (
 @dataclass
 class NiftiVolumeResource(VolumeResource):
     """A volume or volume stack that is saved to disk in the nifti file format."""
+
+    is_loaded: ClassVar[bool] = False
 
     path: Path
     """Path to the underlying volume nifti file"""
@@ -62,6 +64,8 @@ class NiftiVolumeResource(VolumeResource):
 class FslBvalResource(BvalResource):
     """A b-value list that is saved to disk in the FSL text file format."""
 
+    is_loaded: ClassVar[bool] = False
+
     path: Path
     """Path to the underlying bval txt file"""
 
@@ -83,6 +87,8 @@ class FslBvalResource(BvalResource):
 @dataclass
 class FslBvecResource(BvecResource):
     """A b-vector list that is saved to disk in the FSL text file format."""
+
+    is_loaded: ClassVar[bool] = False
 
     path: Path
     """Path to the underlying bvec txt file"""
