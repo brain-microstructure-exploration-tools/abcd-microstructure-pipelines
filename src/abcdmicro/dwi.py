@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from abcdmicro.event import AbcdEvent
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 from abcdmicro.resource import (
     BvalResource,
     BvecResource,
     VolumeResource,
 )
+
+if TYPE_CHECKING:
+    from abcdmicro.event import AbcdEvent
 
 
 @dataclass
