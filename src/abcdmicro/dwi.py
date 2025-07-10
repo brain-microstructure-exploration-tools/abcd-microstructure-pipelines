@@ -42,6 +42,13 @@ class Dwi:
     event: None | AbcdEvent = None
     """The ABCD event associated with this DWI. If not provided then this is an anonymous DWI."""
 
+    def __post_init__(self) -> None:
+        # Check that b-vectors are unit vectors whenever the b-value isn't 0
+        bvecs_to_check = self.bvec.get()[self.bval.get() != 0]
+        if not np.allclose(np.linalg.norm(bvecs_to_check, axis=1), 1.0):
+            msg = "All b-vectors with nonzero b-values must be unit vectors."
+            raise ValueError(msg)
+
     def load(self) -> Dwi:
         """Load any on-disk resources into memory and return a Dwi with all loadable resources loaded."""
         return Dwi(

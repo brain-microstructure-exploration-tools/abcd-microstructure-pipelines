@@ -61,7 +61,7 @@ def dwi(abcd_event, volume_array, random_affine, small_nifti_header) -> Dwi:
         volume=InMemoryVolumeResource(
             array=volume_array, affine=random_affine, metadata=dict(small_nifti_header)
         ),
-        bval=InMemoryBvalResource(np.array([500.0, 1000.0, 200.0])),
+        bval=InMemoryBvalResource(np.array([500.0, 1000.0])),
         bvec=InMemoryBvecResource(
             np.array(
                 [
@@ -131,6 +131,29 @@ def dwi3(abcd_event, random_affine, small_nifti_header) -> Dwi:
         ),
         bval=InMemoryBvalResource(array=np.array([0, 1000, 3000, 0, 0, 2000])),
         bvec=InMemoryBvecResource(array=bvec_array),
+    )
+
+
+def test_initialization_fails_with_bad_bvecs(volume_array):
+    # Non unit b-vectors
+    bvec = InMemoryBvecResource(
+        np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+    )
+    with pytest.raises(
+        ValueError,
+        match="must be unit vectors",
+    ):
+        Dwi(
+            volume=InMemoryVolumeResource(array=volume_array),
+            bval=InMemoryBvalResource(np.array([1000.0, 2000, 3000, 3000])),
+            bvec=bvec,
+        )
+
+    # No exception should be raised if the offending b-vec has a b-val of 0:
+    Dwi(
+        volume=InMemoryVolumeResource(array=volume_array),
+        bval=InMemoryBvalResource(np.array([1000.0, 0.0, 3000, 3000])),
+        bvec=bvec,
     )
 
 

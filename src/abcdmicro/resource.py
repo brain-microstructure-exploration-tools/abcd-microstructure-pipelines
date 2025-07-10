@@ -115,10 +115,5 @@ class InMemoryBvecResource(BvecResource):
             msg = f"Encountered wrong b-vector array shape {self.array.shape}. Expected shape (N,3)."
             raise ValueError(msg)
 
-        # Check that b-vectors are unit vectors
-        if not np.allclose(np.linalg.norm(self.array, axis=1), 1.0):
-            msg = "All b-vectors must be unit vectors."
-            raise ValueError(msg)
-
     def get(self) -> NDArray[np.floating]:
         return self.array
