@@ -6,10 +6,8 @@ import multiprocessing.pool
 from pathlib import Path
 from typing import NamedTuple
 
-import dipy.core.gradients
-import dipy.io
-import dipy.io.image
-import numpy.typing as npt
+from abcdmicro.dwi import Dwi
+from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 
 
 class Case(NamedTuple):
@@ -35,21 +33,6 @@ class Case(NamedTuple):
     """
 
 
-def compute_b0_mean(
-    dwi_array: npt.NDArray, bvals: npt.NDArray, bvecs: npt.NDArray
-) -> npt.NDArray:
-    """
-    Compute the mean of the b=0 images of a DWI.
-
-    :param dwi_array: DWI image array of shape (H,W,D,N) where H,W,D are spatial dimensions and there are N DWI volumes.
-    :param bvals: array of shape (N,) providing the b-values.
-    :param bvecs: array of shape (N,3) providing the b-vectors. They must be unit vectors.
-    :return: an array of shape (H,W,D) which is the mean of the b=0 images.
-    """
-    gtab = dipy.core.gradients.gradient_table(bvals=bvals, bvecs=bvecs)
-    return dwi_array[:, :, :, gtab.b0s_mask].mean(axis=3)
-
-
 def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     """
     Compute the mean of the b=0 images of a DWI file, and save the output.
@@ -60,15 +43,14 @@ def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
     :param b0_out: output path to save nifti file of the b=0 mean
     """
 
-    data, affine, img = dipy.io.image.load_nifti(str(dwi), return_img=True)
-    bvals, bvecs = dipy.io.read_bvals_bvecs(str(bval), str(bvec))
-
-    b0_mean = compute_b0_mean(data, bvals, bvecs)
-
+    b0_mean = Dwi(
+        volume=NiftiVolumeResource(dwi),
+        bval=FslBvalResource(bval),
+        bvec=FslBvecResource(bvec),
+    ).compute_mean_b0()
     b0_out.parent.mkdir(parents=True, exist_ok=True)
-
     logging.debug("generate %r", b0_out)
-    dipy.io.image.save_nifti(str(b0_out), b0_mean, affine, hdr=img.header)
+    NiftiVolumeResource.save(b0_mean, b0_out)
 
 
 def extract_hd_bet_args(

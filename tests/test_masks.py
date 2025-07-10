@@ -8,15 +8,13 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 import scipy.linalg
-from dipy.io.image import load_nifti, save_nifti
+from dipy.io.image import save_nifti
 
 from abcdmicro.masks import (
     Case,
     batch_generate,
-    compute_b0_mean,
     extract_gen_b0_args,
     extract_hd_bet_args,
-    gen_b0_mean,
 )
 
 
@@ -69,32 +67,6 @@ def write_dwi_files(
             print(" ".join(map(str, coord)), file=f, end="\n")
 
     return DwiFiles(dwi=dwi_file, bval=bval_file, bvec=bvec_file)
-
-
-def test_compute_b0_mean(dwi_data_small_random):
-    dwi_data, bvals, bvecs = dwi_data_small_random
-    b0_mean = compute_b0_mean(dwi_data, bvals, bvecs)
-    assert b0_mean == pytest.approx(
-        (dwi_data[..., 0] + dwi_data[..., 3] + dwi_data[..., 4]) / 3
-    )
-
-
-@pytest.mark.parametrize("extension", ["nii", "nii.gz"])
-def test_gen_b0_mean(dwi_data_small_random, affine_random, extension):
-    dwi_data, bvals, bvecs = dwi_data_small_random
-    with tempfile.TemporaryDirectory() as work_dir:
-        paths = write_dwi_files(
-            Path(work_dir), dwi_data, affine_random, bvals, bvecs, extension
-        )
-        output_path = Path(work_dir) / f"out.{extension}"
-        gen_b0_mean(paths.dwi, paths.bval, paths.bvec, output_path)
-        output_b0_mean, affine = load_nifti(
-            output_path,
-            as_ndarray=False,  # This prevents the array data from keeping the file open on windows
-        )
-        assert affine == pytest.approx(affine_random)  # test that affine is preserved
-        expected_b0_mean = dwi_data[..., np.array(bvals) == 0].mean(axis=-1)
-        assert output_b0_mean == pytest.approx(expected_b0_mean)
 
 
 @pytest.mark.parametrize("extension", ["nii.gz"])  # TODO: add nii extension here

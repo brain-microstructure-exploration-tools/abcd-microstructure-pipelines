@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import dipy.core.gradients
 import numpy as np
 
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
@@ -26,9 +27,6 @@ if TYPE_CHECKING:
 class Dwi:
     """An ABCD diffusion weighted image."""
 
-    event: AbcdEvent
-    """The ABCD event associated with this DWI."""
-
     volume: VolumeResource
     """ The DWI image volume.
     It is assumed to be a 4D volume, with the first three dimensions being spatial and the final dimension indexing
@@ -40,6 +38,9 @@ class Dwi:
 
     bvec: BvecResource
     """The DWI b-vectors"""
+
+    event: None | AbcdEvent = None
+    """The ABCD event associated with this DWI. If not provided then this is an anonymous DWI."""
 
     def load(self) -> Dwi:
         """Load any on-disk resources into memory and return a Dwi with all loadable resources loaded."""
@@ -68,6 +69,31 @@ class Dwi:
             volume=NiftiVolumeResource.save(self.volume, path / f"{basename}.nii.gz"),
             bval=FslBvalResource.save(self.bval, path / f"{basename}.bval"),
             bvec=FslBvecResource.save(self.bvec, path / f"{basename}.bvec"),
+        )
+
+    def get_gtab(self) -> dipy.core.gradients.GradientTable:
+        """Get the GradientTable for this DWI."""
+        return dipy.core.gradients.gradient_table(
+            bvals=self.bval.get(), bvecs=self.bvec.get()
+        )
+
+    def compute_mean_b0(self) -> InMemoryVolumeResource:
+        """Compute the mean of the b=0 images of a DWI."""
+        gtab = self.get_gtab()
+        mean_b0_array = self.volume.get_array()[:, :, :, gtab.b0s_mask].mean(axis=3)
+
+        dwi_metadata = self.volume.get_metadata()
+        metadata = {
+            "descrip": "Mean b0 image extracted from a DWI.",
+        }
+        for key in ["qform_code", "sform_code"]:
+            if key in dwi_metadata:
+                metadata[key] = dwi_metadata[key]
+
+        return InMemoryVolumeResource(
+            array=mean_b0_array,
+            affine=self.volume.get_affine(),
+            metadata=metadata,
         )
 
     @staticmethod

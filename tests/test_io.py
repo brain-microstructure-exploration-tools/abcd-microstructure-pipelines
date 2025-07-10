@@ -27,7 +27,7 @@ def bval_array():
 
 @pytest.fixture
 def bvec_array():
-    return np.array(
+    bvec = np.array(
         [
             [
                 1.0,
@@ -37,6 +37,7 @@ def bvec_array():
             [2.0, 0.0, -4.0],
         ]
     )
+    return bvec / np.linalg.norm(bvec, axis=1, keepdims=True)
 
 
 @pytest.fixture

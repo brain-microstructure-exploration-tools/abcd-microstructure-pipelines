@@ -32,7 +32,7 @@ def abcd_event():
 @pytest.fixture
 def volume_array():
     rng = np.random.default_rng(1337)
-    return rng.random(size=(3, 4, 5, 6), dtype=float)
+    return rng.random(size=(6, 4, 5, 3), dtype=float)
 
 
 @pytest.fixture
@@ -66,11 +66,11 @@ def dwi(abcd_event, volume_array, random_affine, small_nifti_header) -> Dwi:
             np.array(
                 [
                     [
-                        1.0,
-                        1.0,
-                        1.0,
+                        1.0 / np.sqrt(3),
+                        1.0 / np.sqrt(3),
+                        1.0 / np.sqrt(3),
                     ],
-                    [2.0, 0.0, -4.0],
+                    [2.0 / np.sqrt(20), 0.0, -4.0 / np.sqrt(20)],
                 ]
             )
         ),
@@ -82,6 +82,8 @@ def dwi1(abcd_event, random_affine, small_nifti_header) -> Dwi:
     """An example in-memory Dwi with 6 volumes."""
     n_vols = 6
     rng = np.random.default_rng(4616)
+    bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
+    bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
     return Dwi(
         event=abcd_event,
         volume=InMemoryVolumeResource(
@@ -90,7 +92,7 @@ def dwi1(abcd_event, random_affine, small_nifti_header) -> Dwi:
             metadata=dict(small_nifti_header),
         ),
         bval=InMemoryBvalResource(array=rng.integers(0, 3000, n_vols).astype(float)),
-        bvec=InMemoryBvecResource(array=rng.random(size=(n_vols, 3), dtype=np.float32)),
+        bvec=InMemoryBvecResource(array=bvec_array),
     )
 
 
@@ -99,6 +101,8 @@ def dwi2(abcd_event, random_affine, small_nifti_header) -> Dwi:
     """A second example in-memory Dwi with 4 volumes and metadata that matches that of dwi1."""
     n_vols = 4
     rng = np.random.default_rng(7816)
+    bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
+    bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
     return Dwi(
         event=abcd_event,  # event, affine, and metadata matches dwi1
         volume=InMemoryVolumeResource(
@@ -107,7 +111,26 @@ def dwi2(abcd_event, random_affine, small_nifti_header) -> Dwi:
             metadata=dict(small_nifti_header),
         ),
         bval=InMemoryBvalResource(array=rng.integers(0, 3000, n_vols).astype(float)),
-        bvec=InMemoryBvecResource(array=rng.random(size=(n_vols, 3), dtype=np.float32)),
+        bvec=InMemoryBvecResource(array=bvec_array),
+    )
+
+
+@pytest.fixture
+def dwi3(abcd_event, random_affine, small_nifti_header) -> Dwi:
+    """A n example in-memory Dwi with 6 volumes, 3 of which have b=0"""
+    n_vols = 6
+    rng = np.random.default_rng(7816)
+    bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
+    bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
+    return Dwi(
+        event=abcd_event,
+        volume=InMemoryVolumeResource(
+            array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
+            affine=random_affine,
+            metadata=dict(small_nifti_header),
+        ),
+        bval=InMemoryBvalResource(array=np.array([0, 1000, 3000, 0, 0, 2000])),
+        bvec=InMemoryBvecResource(array=bvec_array),
     )
 
 
@@ -234,4 +257,13 @@ def test_dwi_concatenate_metadata_mismatch(dwi1: Dwi, dwi2: Dwi, caplog):
     # ensure the first DWI's metadata was used
     assert deep_equal_allclose(
         dwi_cat.volume.get_metadata(), dwi1.volume.get_metadata()
+    )
+
+
+def test_compute_b0_mean(dwi3: Dwi):
+    """Test mean b0 computation"""
+    b0_mean = dwi3.compute_mean_b0()
+    dwi_array = dwi3.volume.get_array()
+    assert b0_mean.get_array() == pytest.approx(
+        (dwi_array[..., 0] + dwi_array[..., 3] + dwi_array[..., 4]) / 3
     )
