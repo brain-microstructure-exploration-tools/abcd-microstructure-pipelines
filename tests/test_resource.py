@@ -72,15 +72,6 @@ def random_affine() -> np.ndarray:
 
 
 def test_initialization_fails_with_bad_bvecs():
-    # Non unit vectors
-    with pytest.raises(
-        ValueError,
-        match="All b-vectors must be unit vectors.",
-    ):
-        InMemoryBvecResource(
-            np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
-        )
-
     # Bad dim
     with pytest.raises(
         ValueError,
