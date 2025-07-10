@@ -12,7 +12,7 @@ from dipy.io.image import save_nifti
 
 from abcdmicro.masks import (
     Case,
-    batch_generate,
+    brain_extract_batch,
     extract_gen_b0_args,
     extract_hd_bet_args,
 )
@@ -166,7 +166,7 @@ def test_extract_gen_b0_args():
 
 
 @pytest.mark.parametrize(("extension", "parallel"), [("nii.gz", True), ("nii", False)])
-def test_batch_generate(
+def test_brain_extract_batch(
     mocker, extension, parallel, dwi_data_small_random, affine_random
 ):
     dwi_data, bvals, bvecs = dwi_data_small_random
@@ -179,7 +179,7 @@ def test_batch_generate(
 
         mock_run_hd_bet = mocker.patch("abcdmicro.masks._run_hd_bet")
 
-        batch_generate(
+        brain_extract_batch(
             cases=[
                 Case(
                     dwi=input_paths.dwi,

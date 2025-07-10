@@ -35,7 +35,7 @@ dependencies = [
   "numpy",
   "dipy >=1.9",
   "pandas",
-  "HD_BET @ https://github.com/brain-microstructure-exploration-tools/HD-BET/archive/refs/tags/v1.0.0.zip#sha256=d48908854207b839552f2059c9cf2a48819b847bc1eb0ea4445d1d589471a1f5",
+  "hd-bet == 2.0.1",
 ]
 
 [project.optional-dependencies]

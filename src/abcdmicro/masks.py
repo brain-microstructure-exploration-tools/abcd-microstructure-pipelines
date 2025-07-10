@@ -6,6 +6,8 @@ import multiprocessing.pool
 from pathlib import Path
 from typing import NamedTuple
 
+import torch
+
 from abcdmicro.dwi import Dwi
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 
@@ -123,25 +125,73 @@ def extract_gen_b0_args(
 
 
 def _run_hd_bet(
-    hd_bet_input: list[str], hd_bet_output: list[str], overwrite: bool
-) -> None:
+    hd_bet_input: list[str],
+    hd_bet_output: list[str],
+    device: str | None = None,
+    use_tta: bool | None = None,
+) -> None:  # TODO UPDATE THE DOCSTRING!
     """
-    Functional wrapper of HD_BET.run.run_hd_bet.
-    Run HD-BET on the given input files. The expensive HD-BET import and run call are isolated in this function.
+    Run HD-BET inference on the given input files.
+    The expensive HD-BET import and run call are isolated in this function.
 
-    :param hd_bet_input: passed to the `mri_fnames` parameter of HD_BET.run.run_hd_bet
-    :param hd_bet_output: passed to the `output_fnames` parameter of HD_BET.run.run_hd_bet
-    :param overwrite: passed to the `overwrite` parameter of HD_BET.run.run_hd_bet
+    :param hd_bet_input: List of input filepaths. We have only observed nii.gz files to work.
+    :param hd_bet_output: List of output filepaths. We have only observed nii.gz files to work.
+    :param device: A string indicating the device on which to use pytorch. Defaults to 'cuda' if available, otherwise 'cpu'.
+    :param use_tta: Whether to tell HD-BET to do test time augmentation. Takes a bit longer but is a bit more accurate.
+        Default is to use it if the device is GPU and omit it if the device is CPU; this is HD-BET's recommendation.
     """
+
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    if use_tta is None:
+        use_tta = torch.device(device).type == "cuda"
+
+    # try to catch certain issues before going into HD-BET
+    if any(
+        not Path(path).name.endswith(".nii.gz") for path in hd_bet_input + hd_bet_output
+    ):
+        logging.warning(
+            "abcdmicro HD-BET runner has only been tested with *.nii.gz files. Masking might not work."
+        )
+    if any(Path(path).exists() for path in hd_bet_output):
+        logging.warning(
+            "HD-BET output already exists and will be overwritten for the following files: %s",
+            [path for path in hd_bet_output if Path(path).exists()],
+        )
+    if any(not Path(path).exists() for path in hd_bet_input):
+        msg = f"Some input files to HD-BET do not exist: {[path for path in hd_bet_input if not Path(path).exists()]}"
+        raise FileNotFoundError(msg)
+
     logging.debug("Loading HD_BET")
     # don't import till now since it takes time to initialize.
-    import HD_BET.run  # pylint: disable=import-outside-toplevel
+    from HD_BET.checkpoint_download import (
+        maybe_download_parameters,  # pylint: disable=import-outside-toplevel
+    )
+    from HD_BET.hd_bet_prediction import (
+        get_hdbet_predictor,  # pylint: disable=import-outside-toplevel
+    )
+
+    maybe_download_parameters()
+    predictor = get_hdbet_predictor(
+        use_tta=use_tta,
+        device=torch.device(device),
+    )
 
     logging.debug("Generate %s masks", len(hd_bet_input))
-    HD_BET.run.run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
+    predictor.predict_from_files(
+        list_of_lists_or_source_folder=[[i] for i in hd_bet_input],
+        output_folder_or_list_of_truncated_output_files=hd_bet_output,
+        save_probabilities=False,
+        overwrite=True,
+        num_processes_preprocessing=4,
+        num_processes_segmentation_export=8,
+        folder_with_segs_from_prev_stage=None,
+        num_parts=1,
+        part_id=0,
+    )
 
 
-def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
+def brain_extract_batch(cases: list[Case], overwrite: bool, parallel: bool) -> None:
     """
     Generate ``b0_out`` and ``mask_out`` for each case. See ``extract_hd_bet_args`` for notes on HD_BET.
 
@@ -164,4 +214,4 @@ def batch_generate(cases: list[Case], overwrite: bool, parallel: bool) -> None:
         for _ in itertools.starmap(gen_b0_mean, b0_tasks):
             pass  # just consume the iterator. maybe wrap in tqdm?
 
-    _run_hd_bet(hd_bet_input, hd_bet_output, overwrite=overwrite)
+    _run_hd_bet(hd_bet_input, hd_bet_output)
