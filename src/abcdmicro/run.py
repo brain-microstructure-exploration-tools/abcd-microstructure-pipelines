@@ -53,7 +53,7 @@ def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> N
 
     Produces output files: ``<ID>_b0.nii.gz``, ``<ID>_mask.nii.gz``
     \f
-    See :func:`abcdmicro.masks.batch_generate` for details.
+    See :func:`abcdmicro.masks.brain_extract_batch` for details.
     """
 
     cases: list[masks.Case] = []
@@ -76,4 +76,4 @@ def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> N
             )
         )
 
-    masks.batch_generate(cases, overwrite, parallel)
+    masks.brain_extract_batch(cases, overwrite, parallel)

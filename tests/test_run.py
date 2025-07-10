@@ -14,7 +14,7 @@ from abcdmicro.run import gen_masks
 )  # More extensions can go here if we improve I/O
 def test_gen_masks(mocker, extension):
     runner = CliRunner()
-    mock_batch_generate = mocker.patch("abcdmicro.masks.batch_generate")
+    mock_brain_extract_batch = mocker.patch("abcdmicro.masks.brain_extract_batch")
     with tempfile.TemporaryDirectory() as work_dir:
         input_dir = Path(work_dir) / "inputs"
         output_dir = Path(work_dir) / "outputs"
@@ -32,8 +32,8 @@ def test_gen_masks(mocker, extension):
             gen_masks,
             ["--inputs", str(input_dir), "--outputs", str(output_dir), "--overwrite"],
         )
-        mock_batch_generate.assert_called_once()
-        cases, overwrite, parallel = mock_batch_generate.call_args.args
+        mock_brain_extract_batch.assert_called_once()
+        cases, overwrite, parallel = mock_brain_extract_batch.call_args.args
         assert overwrite
         assert not parallel
         assert len(cases) == 2  # ensure both cases were found for processing
