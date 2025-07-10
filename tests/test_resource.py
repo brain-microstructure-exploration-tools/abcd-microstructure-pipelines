@@ -45,11 +45,11 @@ def bvec_array():
     return np.array(
         [
             [
-                1.0,
-                1.0,
-                1.0,
+                1.0 / np.sqrt(3),
+                1.0 / np.sqrt(3),
+                1.0 / np.sqrt(3),
             ],
-            [2.0, 0.0, -4.0],
+            [2.0 / np.sqrt(20), 0.0, -4.0 / np.sqrt(20)],
         ]
     )
 
@@ -69,6 +69,33 @@ def random_affine() -> np.ndarray:
     )  # generate a random orthogonal matrix
     affine[:3, 3] = rng.random(3)  # generate a random origin
     return affine
+
+
+def test_initialization_fails_with_bad_bvecs():
+    # Non unit vectors
+    with pytest.raises(
+        ValueError,
+        match="All b-vectors must be unit vectors.",
+    ):
+        InMemoryBvecResource(
+            np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]])
+        )
+
+    # Bad dim
+    with pytest.raises(
+        ValueError,
+        match="Encountered wrong b-vector array shape",
+    ):
+        InMemoryBvecResource(np.array([[1.0, 0.0], [0.0, 1.0], [0.0, 1.0]]))
+
+    # Bad number of dims
+    with pytest.raises(
+        ValueError,
+        match="Encountered wrong b-vector array shape",
+    ):
+        InMemoryBvecResource(
+            np.array([[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]])
+        )
 
 
 def test_bval_inmemory_get(bval_array):
