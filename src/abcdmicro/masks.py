@@ -1,127 +1,16 @@
 from __future__ import annotations
 
-import itertools
 import logging
-import multiprocessing.pool
+import tempfile
 from pathlib import Path
-from typing import NamedTuple
+from typing import TYPE_CHECKING
 
 import torch
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from abcdmicro.io import NiftiVolumeResource
 
-
-class Case(NamedTuple):
-    """All input and output files to generate a single mask."""
-
-    dwi: Path
-    """``_dwi.nii.gz`` input."""
-
-    bval: Path
-    """``.bval`` input."""
-
-    bvec: Path
-    """``.bvec`` input."""
-
-    b0_out: Path
-    """``_b0.nii.gz`` output."""
-
-    mask_out: Path
-    """``_mask.nii.gz`` output.
-
-    HD-BET always outputs files ending in ``_mask.nii.gz``, so this file must have that suffix. Otherwise another
-    file with that suffix would be created and ``mask_out`` will not exist.
-    """
-
-
-def gen_b0_mean(dwi: Path, bval: Path, bvec: Path, b0_out: Path) -> None:
-    """
-    Compute the mean of the b=0 images of a DWI file, and save the output.
-
-    :param dwi: path to nifti file containing DWI input
-    :param bval: path to b-values file in FSL format
-    :param bvec: path to b-vectors file in FSL format
-    :param b0_out: output path to save nifti file of the b=0 mean
-    """
-
-    b0_mean = Dwi(
-        volume=NiftiVolumeResource(dwi),
-        bval=FslBvalResource(bval),
-        bvec=FslBvecResource(bvec),
-    ).compute_mean_b0()
-    b0_out.parent.mkdir(parents=True, exist_ok=True)
-    logging.debug("generate %r", b0_out)
-    NiftiVolumeResource.save(b0_mean, b0_out)
-
-
-def extract_hd_bet_args(
-    cases: list[Case], overwrite: bool
-) -> tuple[list[str], list[str]]:
-    """
-    Extract arguments for ``HD_BET.run.run_hd_bet`` to process the cases. Do not include cases whose output already
-    exists, unless ``overwrite`` is set.
-
-    hd_bet expects arguments as a pair of lists, rather than a list of pairs. hd_bet also appends ``_mask`` to its
-    output filenames, and this feature cannot be disabled, so check the outputs in ``tasks`` contain this suffix and
-    choose the arguments to produce the correct output.
-
-    Warn and skip tasks where this is not possible.
-
-    :param cases: list of cases to process
-    :param overwrite: include cases with already existing output.
-    :return: (inputs, outputs) arguments suitable for ``HD_BET.run.run_hd_bet``
-    """
-
-    inputs = []
-    outputs = []
-
-    for case in cases:
-        if not overwrite and case.mask_out.exists():
-            continue
-
-        # invert hd_bet behavior.
-        output_arg = case.mask_out.with_name(
-            case.mask_out.name.removesuffix("_mask.nii.gz") + ".nii.gz"
-        )
-
-        # match hd_bet behavior.
-        output_real = output_arg.with_name(output_arg.name[:-7] + "_mask.nii.gz")
-
-        if output_real != case.mask_out:
-            logging.warning(
-                "HD-BET will not output %r. Would output %r instead. Skipping.",
-                case.mask_out.name,
-                output_real.name,
-            )
-            continue
-
-        inputs.append(str(case.b0_out))
-        outputs.append(str(output_arg))
-
-    return inputs, outputs
-
-
-def extract_gen_b0_args(
-    cases: list[Case], overwrite: bool
-) -> list[tuple[Path, Path, Path, Path]]:
-    """
-    Extract arguments for ``gen_b0_mean`` to process each case. Do not include cases whose output already exists,
-    unless ``overwrite`` is set.
-
-    :param cases: list of cases to process
-    :param overwrite: include cases with already existing output.
-    :return: list of arguments for invocations to ``gen_b0_mean``, suitable for ``starmap``.
-    """
-
-    args = []
-    for case in cases:
-        if not overwrite and case.b0_out.exists():
-            continue
-
-        args.append((case.dwi, case.bval, case.bvec, case.b0_out))
-
-    return args
+if TYPE_CHECKING:
+    from abcdmicro.dwi import Dwi
 
 
 def _run_hd_bet(
@@ -191,27 +80,50 @@ def _run_hd_bet(
     )
 
 
-def brain_extract_batch(cases: list[Case], overwrite: bool, parallel: bool) -> None:
+def brain_extract_batch(cases: list[tuple[Dwi, Path]]) -> list[NiftiVolumeResource]:
+    """Run brain extraction on a batch of cases.
+    HD-BET does not run in parallel, but it does have some initialization time so it helps to run cases in batches.
+
+    :param cases: A list of pairs each consisting of an input Dwi and desired output path for the mask.
+
+    Returns a list of computed brain masks that is in correspondence with the list of input `cases`.
     """
-    Generate ``b0_out`` and ``mask_out`` for each case. See ``extract_hd_bet_args`` for notes on HD_BET.
 
-    :param cases: The cases to process.
-    :param overwrite: Overwrite existing files only if this is set.
-    :param parallel: Generate ``b0_out`` in parallel. HD_BET does not run in parallel.
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        hd_bet_input = []
+        hd_bet_output = []
+        for i, (dwi, output_path) in enumerate(cases):
+            b0_path = (
+                tmpdir_path / f"b0_mean_{i}.nii.gz"
+            )  # (for some reason HD-BET does not work with .nii)
+            b0_resource = NiftiVolumeResource.save(dwi.compute_mean_b0(), b0_path)
+            hd_bet_input.append(str(b0_resource.path))
+            hd_bet_output.append(str(output_path))
+
+        _run_hd_bet(hd_bet_input, hd_bet_output)
+
+    for _, output_path in cases:
+        if not output_path.exists():
+            logging.error(
+                "After running brain masking, expected output does not seem to exist: %s.",
+                output_path,
+            )
+
+    return [NiftiVolumeResource(output_path) for _, output_path in cases]
+
+
+def brain_extract_single(dwi: Dwi, output_path: Path) -> NiftiVolumeResource:
+    """Run brain extraction on a single case.
+
+    HD-BET has significant initialization time, so it is not adviced to run this function in a loop;
+    see `brain_extract_batch`.
+
+    :param dwi: Input DWI
+    :param output_path: Output path for brain mask
+
+    Returns the computed brain mask.
     """
 
-    b0_tasks = extract_gen_b0_args(cases, overwrite)
-
-    hd_bet_input, hd_bet_output = extract_hd_bet_args(cases, overwrite)
-
-    if parallel:
-        logging.debug("generate %s b0_mean in parallel", len(b0_tasks))
-        with multiprocessing.pool.Pool() as pool:
-            for _ in pool.starmap(gen_b0_mean, b0_tasks):
-                pass  # just consume the iterator. maybe wrap in tqdm?
-    else:
-        logging.debug("generate %s b0_mean sequentially", len(b0_tasks))
-        for _ in itertools.starmap(gen_b0_mean, b0_tasks):
-            pass  # just consume the iterator. maybe wrap in tqdm?
-
-    _run_hd_bet(hd_bet_input, hd_bet_output)
+    return brain_extract_batch([(dwi, output_path)])[0]

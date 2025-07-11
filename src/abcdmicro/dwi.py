@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -9,6 +10,7 @@ import dipy.core.gradients
 import numpy as np
 
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from abcdmicro.masks import brain_extract_single
 from abcdmicro.resource import (
     BvalResource,
     BvecResource,
@@ -187,3 +189,14 @@ class Dwi:
             bval=concatenated_bval,
             bvec=concatenated_bvec,
         )
+
+    def extract_brain(self) -> InMemoryVolumeResource:
+        """Extract brain mask. This is meant to be convenient rather than efficient.
+        Using this in a loop could result in unnecessary repetition of file I/O operations.
+        For efficiency, see `abcdmicro.masks.brain_extract_batch`.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "brain_mask.nii.gz"
+            brain_mask = brain_extract_single(dwi=self, output_path=output_path)
+            brain_mask = brain_mask.load()
+        return brain_mask
