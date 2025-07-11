@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import tempfile
 from pathlib import Path
+from unittest.mock import ANY
 
 import nibabel as nib
 import numpy as np
@@ -10,6 +12,7 @@ from scipy.linalg import expm
 
 from abcdmicro.dwi import Dwi
 from abcdmicro.event import AbcdEvent
+from abcdmicro.io import NiftiVolumeResource
 from abcdmicro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
@@ -290,3 +293,25 @@ def test_compute_b0_mean(dwi3: Dwi):
     assert b0_mean.get_array() == pytest.approx(
         (dwi_array[..., 0] + dwi_array[..., 3] + dwi_array[..., 4]) / 3
     )
+
+
+def test_extract_brain(dwi3: Dwi, random_affine: np.ndarray, mocker):
+    """Test that calling brain_extract method calls and appropriately uses the brain masking utility in abcdmicro.masks"""
+    with tempfile.TemporaryDirectory() as work_dir:
+        # Mocking of brain_extract_single
+        mask_path = Path(work_dir) / "blah.nii"
+        rng = np.random.default_rng(18653)
+        mask_in_memory = InMemoryVolumeResource(
+            array=rng.random((2, 3, 4)), affine=random_affine
+        )
+        mask_on_disk = NiftiVolumeResource.save(mask_in_memory, mask_path)
+        mock_brain_extract_single = mocker.patch(
+            "abcdmicro.dwi.brain_extract_single",
+            return_value=mask_on_disk,
+        )
+
+        # Test
+        mask_actual = dwi3.extract_brain()
+        mock_brain_extract_single.assert_called_once_with(dwi=dwi3, output_path=ANY)
+        assert np.allclose(mask_actual.get_affine(), mask_in_memory.get_affine())
+        assert np.allclose(mask_actual.get_array(), mask_in_memory.get_array())
