@@ -198,5 +198,4 @@ class Dwi:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "brain_mask.nii.gz"
             brain_mask = brain_extract_single(dwi=self, output_path=output_path)
-            brain_mask = brain_mask.load()
-        return brain_mask
+            return brain_mask.load()

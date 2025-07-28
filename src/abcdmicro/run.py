@@ -13,6 +13,8 @@ from pathlib import Path
 import click
 
 from abcdmicro import masks
+from abcdmicro.dwi import Dwi
+from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARN"))
 
@@ -32,48 +34,38 @@ logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARN"))
     type=Path,
     help="Root directory to write outputs.",
 )
-@click.option(
-    "--overwrite",
-    is_flag=True,
-    help="Recompute and overwrite existing output files.",
-)
-@click.option(
-    "--parallel",
-    "-j",
-    is_flag=True,
-    help="Compute intermediate ``<ID>_b0.nii.gz`` files in parallel.\n"
-    "Note that HD_BET does *not* compute in parallel.",
-)
-def gen_masks(inputs: Path, outputs: Path, overwrite: bool, parallel: bool) -> None:
+def gen_masks(inputs: Path, outputs: Path) -> None:
     """
     Recursively find and process dwi images and create hd_bet masks for each.
     Preserves directory structure in output.
 
     Searches for input files: ``<ID>_dwi.nii.gz``, ``<ID>.bval``, ``<ID>.bvec``
 
-    Produces output files: ``<ID>_b0.nii.gz``, ``<ID>_mask.nii.gz``
+    Produces output files: ``<ID>_mask.nii.gz``
     \f
     See :func:`abcdmicro.masks.brain_extract_batch` for details.
     """
 
-    cases: list[masks.Case] = []
+    cases: list[tuple[Dwi, Path]] = []
 
     if not inputs.exists():
         error_message = f"Input directory {inputs} not found."
         raise FileNotFoundError(error_message)
 
-    for dwi in inputs.rglob("*_dwi.nii.gz"):
-        base = dwi.with_name(dwi.name.removesuffix(".nii.gz"))
+    for dwi_input_path in inputs.rglob("*_dwi.nii.gz"):
+        base = dwi_input_path.with_name(dwi_input_path.name.removesuffix(".nii.gz"))
         base_out = outputs.joinpath(base.relative_to(inputs))
 
         cases.append(
-            masks.Case(
-                base.with_suffix(".nii.gz"),
-                base.with_suffix(".bval"),
-                base.with_suffix(".bvec"),
-                base_out.with_name(base_out.name + "_b0.nii.gz"),
+            (
+                Dwi(
+                    volume=NiftiVolumeResource(base.with_suffix(".nii.gz")),
+                    bval=FslBvalResource(base.with_suffix(".bval")),
+                    bvec=FslBvecResource(base.with_suffix(".bvec")),
+                ),
                 base_out.with_name(base_out.name + "_mask.nii.gz"),
             )
         )
+        base_out.parent.mkdir(parents=True, exist_ok=True)
 
-    masks.brain_extract_batch(cases, overwrite, parallel)
+    masks.brain_extract_batch(cases)
