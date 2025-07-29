@@ -10,6 +10,14 @@ import numpy as np
 PathLike = Path | str
 
 
+def normalize_path(path_input: PathLike) -> Path:
+    """
+    Accepts a path as a string or Path object, expands the tilde (~),
+    and returns a resolved, absolute Path object.
+    """
+    return Path(path_input).expanduser().resolve()
+
+
 def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:
     """
     Recursively compares two objects, including nested lists, tuples,

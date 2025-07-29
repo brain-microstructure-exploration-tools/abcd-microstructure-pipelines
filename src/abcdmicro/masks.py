@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import torch
 
 from abcdmicro.io import NiftiVolumeResource
+from abcdmicro.util import PathLike, normalize_path
 
 if TYPE_CHECKING:
     from abcdmicro.dwi import Dwi
@@ -114,7 +115,7 @@ def brain_extract_batch(cases: list[tuple[Dwi, Path]]) -> list[NiftiVolumeResour
     return [NiftiVolumeResource(output_path) for _, output_path in cases]
 
 
-def brain_extract_single(dwi: Dwi, output_path: Path) -> NiftiVolumeResource:
+def brain_extract_single(dwi: Dwi, output_path: PathLike) -> NiftiVolumeResource:
     """Run brain extraction on a single case.
 
     HD-BET has significant initialization time, so it is not advised to run this function in a loop;
@@ -126,4 +127,4 @@ def brain_extract_single(dwi: Dwi, output_path: Path) -> NiftiVolumeResource:
     Returns the computed brain mask.
     """
 
-    return brain_extract_batch([(dwi, output_path)])[0]
+    return brain_extract_batch([(dwi, normalize_path(output_path))])[0]
