@@ -54,10 +54,10 @@ def _run_hd_bet(
 
     logging.debug("Loading HD_BET")
     # don't import till now since it takes time to initialize.
-    from HD_BET.checkpoint_download import (  # pylint: disable=import-outside-toplevel
+    from HD_BET.checkpoint_download import (  # pylint: disable=import-outside-toplevel # noqa: PLC0415
         maybe_download_parameters,
     )
-    from HD_BET.hd_bet_prediction import (  # pylint: disable=import-outside-toplevel
+    from HD_BET.hd_bet_prediction import (  # pylint: disable=import-outside-toplevel # noqa: PLC0415
         get_hdbet_predictor,
     )
 
