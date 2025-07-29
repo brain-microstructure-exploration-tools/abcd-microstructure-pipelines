@@ -53,11 +53,11 @@ def _run_hd_bet(
 
     logging.debug("Loading HD_BET")
     # don't import till now since it takes time to initialize.
-    from HD_BET.checkpoint_download import (
-        maybe_download_parameters,  # pylint: disable=import-outside-toplevel
+    from HD_BET.checkpoint_download import (  # pylint: disable=import-outside-toplevel
+        maybe_download_parameters,
     )
-    from HD_BET.hd_bet_prediction import (
-        get_hdbet_predictor,  # pylint: disable=import-outside-toplevel
+    from HD_BET.hd_bet_prediction import (  # pylint: disable=import-outside-toplevel
+        get_hdbet_predictor,
     )
 
     maybe_download_parameters()
@@ -117,7 +117,7 @@ def brain_extract_batch(cases: list[tuple[Dwi, Path]]) -> list[NiftiVolumeResour
 def brain_extract_single(dwi: Dwi, output_path: Path) -> NiftiVolumeResource:
     """Run brain extraction on a single case.
 
-    HD-BET has significant initialization time, so it is not adviced to run this function in a loop;
+    HD-BET has significant initialization time, so it is not advised to run this function in a loop;
     see `brain_extract_batch`.
 
     :param dwi: Input DWI
