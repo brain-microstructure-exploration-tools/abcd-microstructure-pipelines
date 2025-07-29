@@ -72,7 +72,7 @@ def test_nifti_volume_resource(volume_array, random_affine, tmp_path):
         data=volume_array,
         affine=random_affine,
     )
-    volume_resource = NiftiVolumeResource(path=volume_file)
+    volume_resource = NiftiVolumeResource(volume_file)
     assert np.allclose(volume_resource.get_array(), volume_array)
     assert np.allclose(volume_resource.get_affine(), random_affine)
 

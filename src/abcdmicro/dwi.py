@@ -19,7 +19,7 @@ from abcdmicro.resource import (
     InMemoryVolumeResource,
     VolumeResource,
 )
-from abcdmicro.util import deep_equal_allclose
+from abcdmicro.util import PathLike, deep_equal_allclose, normalize_path
 
 if TYPE_CHECKING:
     from abcdmicro.event import AbcdEvent
@@ -60,7 +60,7 @@ class Dwi:
             bvec=self.bvec.load(),
         )
 
-    def save(self, path: Path, basename: str) -> Dwi:
+    def save(self, path: PathLike, basename: str) -> Dwi:
         """Save all resources to disk and return a Dwi with all resources being on-disk.
 
         Args:
@@ -69,6 +69,7 @@ class Dwi:
 
         Returns: A Dwi with its internal resources being on-disk.
         """
+        path = normalize_path(path)
         if path.exists() and not path.is_dir():
             msg = "`path` should be the desired save directory"
             raise ValueError(msg)

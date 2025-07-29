@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -9,6 +9,7 @@ import pandas as pd
 
 from abcdmicro.dwi import Dwi
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from abcdmicro.util import PathLike, normalize_path
 
 
 @dataclass
@@ -21,7 +22,7 @@ class AbcdEvent:
     eventname: str
     """The ABCD Study event name, for example 'baseline_year_1_arm_1'"""
 
-    image_download_path: Path
+    image_download_path_in: InitVar[PathLike]
     """Path to the ABCD image root directory. This would be the directory that
     contains paths like
         `sub-NDARINV6NU2WWNR/ses-2YearFollowUpYArm1/dwi/sub-NDARINV6NU2WWNR_ses-2YearFollowUpYArm1_run-01_dwi.nii`
@@ -32,15 +33,27 @@ class AbcdEvent:
     and so on.
     """
 
-    tabular_data_path: Path
+    image_download_path: Path = field(init=False)
+
+    tabular_data_path_in: InitVar[PathLike]
     """Path to the extracted ABCD tabular data directory. This would contain subdirectories
     like `core/mental-health/` with csv tables inside them."""
+
+    tabular_data_path: Path = field(init=False)
 
     abcd_version: str
     """Version of the ABCD dataset release, for example '5.1'."""
 
     _tables: ClassVar[dict[str, dict[str, pd.DataFrame]]] = {}
     """A mapping (ABCD version string) -> (relative table path) -> (loaded table)"""
+
+    def __post_init__(
+        self,
+        image_download_path_in: PathLike,
+        tabular_data_path_in: PathLike,
+    ) -> None:
+        self.image_download_path = normalize_path(image_download_path_in)
+        self.tabular_data_path = normalize_path(tabular_data_path_in)
 
     def get_table(self, table_relative_path: str) -> pd.DataFrame:
         """Get a table, loading it from disk if it hasn't already been loaded.

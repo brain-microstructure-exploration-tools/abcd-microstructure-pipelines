@@ -26,8 +26,8 @@ def abcd_event():
     return AbcdEvent(
         subject_id="NDAR_INV00U4FTRU",
         eventname="baseline_year_1_arm_1",
-        image_download_path=Path("/this/is/a/path/for/images"),
-        tabular_data_path=Path("/this/is/a/path/for/tables"),
+        image_download_path_in=Path("/this/is/a/path/for/images"),
+        tabular_data_path_in=Path("/this/is/a/path/for/tables"),
         abcd_version="5.1",
     )
 
