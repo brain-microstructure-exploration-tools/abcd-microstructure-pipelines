@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+PathLike = Path | str
 
 
 def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:
@@ -33,15 +36,16 @@ def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:
             return False
         return all(deep_equal_allclose(obj1[k], obj2[k]) for k in obj1)
 
-    if isinstance(obj1, (list, tuple)):
+    if isinstance(obj1, list | tuple):
         if len(obj1) != len(obj2):
             return False
         return all(
-            deep_equal_allclose(item1, item2) for item1, item2 in zip(obj1, obj2)
+            deep_equal_allclose(item1, item2)
+            for item1, item2 in zip(obj1, obj2, strict=False)
         )
 
     # catch the case of two single python or numpy NaNs (here mypy seems to have an issue with the isinstance, thinking it's always true)
-    if isinstance(obj1, (float, np.floating)) and np.isnan(obj1) and np.isnan(obj2):  # type: ignore[redundant-expr]
+    if isinstance(obj1, float | np.floating) and np.isnan(obj1) and np.isnan(obj2):  # type: ignore[redundant-expr]
         return True
 
     # for all other types (int, str, etc.)
