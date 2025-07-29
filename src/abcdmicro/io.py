@@ -4,9 +4,10 @@ from dataclasses import InitVar, dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
+import nibabel as nib
 import numpy as np
 from dipy.io.gradients import read_bvals_bvecs
-from dipy.io.image import load_nifti, save_nifti
+from dipy.io.image import save_nifti
 from nibabel.nifti1 import Nifti1Header
 from numpy.typing import NDArray
 
@@ -37,9 +38,9 @@ class NiftiVolumeResource(VolumeResource):
 
     def load(self) -> InMemoryVolumeResource:
         """Load volume into memory"""
-        data, affine, img = load_nifti(self.path, return_img=True)
+        img = nib.load(self.path, mmap=False)
         return InMemoryVolumeResource(
-            array=data, affine=affine, metadata=dict(img.header)
+            array=img.get_fdata(), affine=img.affine, metadata=dict(img.header)
         )
 
     def get_array(self) -> NDArray[np.number]:
