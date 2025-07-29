@@ -3,16 +3,47 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import pytest
 from click.testing import CliRunner
 
+from abcdmicro.dwi import Dwi
+from abcdmicro.resource import (
+    InMemoryBvalResource,
+    InMemoryBvecResource,
+    InMemoryVolumeResource,
+)
 from abcdmicro.run import gen_masks
 
 
-@pytest.mark.parametrize(
-    "extension", ["nii.gz"]
-)  # More extensions can go here if we improve I/O
-def test_gen_masks(mocker, extension):
+@pytest.fixture
+def volume_array():
+    rng = np.random.default_rng(2656542)
+    return rng.random(size=(2, 3, 2, 3), dtype=float)
+
+
+@pytest.fixture
+def dwi(volume_array) -> Dwi:
+    """An example in-memory Dwi"""
+    return Dwi(
+        volume=InMemoryVolumeResource(array=volume_array),
+        bval=InMemoryBvalResource(np.array([500.0, 1000.0])),
+        bvec=InMemoryBvecResource(
+            np.array(
+                [
+                    [
+                        1.0 / np.sqrt(3),
+                        1.0 / np.sqrt(3),
+                        1.0 / np.sqrt(3),
+                    ],
+                    [2.0 / np.sqrt(20), 0.0, -4.0 / np.sqrt(20)],
+                ]
+            )
+        ),
+    )
+
+
+def test_gen_masks(mocker, dwi):
     runner = CliRunner()
     mock_brain_extract_batch = mocker.patch("abcdmicro.masks.brain_extract_batch")
     with tempfile.TemporaryDirectory() as work_dir:
@@ -24,18 +55,14 @@ def test_gen_masks(mocker, extension):
         img2_name = "another_image"
         for case_dir, img_name in [(case1_dir, img1_name), (case2_dir, img2_name)]:
             case_dir.mkdir(parents=True)
-            (case_dir / f"{img_name}_dwi.{extension}").touch()
-            (case_dir / f"{img_name}.bval").touch()
-            (case_dir / f"{img_name}.bvec").touch()
+            dwi.save(case_dir, f"{img_name}_dwi")  # saves to nii.gz
 
         runner.invoke(
             gen_masks,
-            ["--inputs", str(input_dir), "--outputs", str(output_dir), "--overwrite"],
+            ["--inputs", str(input_dir), "--outputs", str(output_dir)],
         )
         mock_brain_extract_batch.assert_called_once()
-        cases, overwrite, parallel = mock_brain_extract_batch.call_args.args
-        assert overwrite
-        assert not parallel
+        cases = mock_brain_extract_batch.call_args.args[0]
         assert len(cases) == 2  # ensure both cases were found for processing
 
 
@@ -50,6 +77,6 @@ def test_gen_masks_nonexistent_inputs():
         # because the clock CliRunner swallows the exception. We have to check the result.
         click_result = runner.invoke(
             gen_masks,
-            ["--inputs", str(input_dir), "--outputs", str(output_dir), "--overwrite"],
+            ["--inputs", str(input_dir), "--outputs", str(output_dir)],
         )
         assert isinstance(click_result.exception, FileNotFoundError)
