@@ -10,7 +10,7 @@ import numpy as np
 def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:
     """
     Recursively compares two objects, including nested lists, tuples,
-    and dicts. Uses np.allclose for numpy arrays.
+    and dicts. Uses np.allclose for numpy arrays. NaN's are considered equal.
     """
     if type(obj1) is not type(obj2):
         return False
@@ -24,7 +24,7 @@ def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:
         if np.issubdtype(obj1.dtype, np.number) and np.issubdtype(
             obj2.dtype, np.number
         ):
-            return bool(np.allclose(obj1, obj2))
+            return bool(np.allclose(obj1, obj2, equal_nan=True))
         # Otherwise (e.g., for string arrays), require exact equality.
         return bool(np.array_equal(obj1, obj2))
 
@@ -39,6 +39,10 @@ def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:
         return all(
             deep_equal_allclose(item1, item2) for item1, item2 in zip(obj1, obj2)
         )
+
+    # catch the case of two single python or numpy NaNs (here mypy seems to have an issue with the isinstance, thinking it's always true)
+    if isinstance(obj1, (float, np.floating)) and np.isnan(obj1) and np.isnan(obj2):  # type: ignore[redundant-expr]
+        return True
 
     # for all other types (int, str, etc.)
     return bool(obj1 == obj2)

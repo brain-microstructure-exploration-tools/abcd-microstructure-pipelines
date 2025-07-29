@@ -286,6 +286,43 @@ def test_dwi_concatenate_metadata_mismatch(dwi1: Dwi, dwi2: Dwi, caplog):
     )
 
 
+@pytest.mark.parametrize("test_with_array_of_nan", [True, False])
+def test_dwi_concatenate_nan_metadata_equality(
+    caplog, volume_array, random_affine, test_with_array_of_nan
+):
+    """If both DWIs have metadata that totally agrees and that includes NaN values,
+    the NaNs should not trip up the equality check."""
+    arr = volume_array[..., :3]  # pick any 3 volumes
+    bval = InMemoryBvalResource(
+        np.zeros(arr.shape[3])
+    )  # all zero bvals so as not to worry about needing unit bvecs
+    bvec = InMemoryBvecResource(np.zeros((arr.shape[3], 3)))
+    nan_meta = (
+        {"blah": np.array([np.nan, 7.2])}
+        if test_with_array_of_nan
+        else {"blah": np.nan}
+    )
+
+    dwi1 = Dwi(
+        volume=InMemoryVolumeResource(
+            array=arr, affine=random_affine, metadata=nan_meta
+        ),
+        bval=bval,
+        bvec=bvec,
+    )
+    dwi2 = Dwi(
+        volume=InMemoryVolumeResource(
+            array=arr, affine=random_affine, metadata=nan_meta
+        ),
+        bval=bval,
+        bvec=bvec,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        Dwi.concatenate([dwi1, dwi2])
+    assert "Metadata mismatch" not in caplog.text
+
+
 def test_compute_b0_mean(dwi3: Dwi):
     """Test mean b0 computation"""
     b0_mean = dwi3.compute_mean_b0()
