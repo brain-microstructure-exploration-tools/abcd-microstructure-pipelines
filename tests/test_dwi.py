@@ -92,7 +92,10 @@ def dwi1(abcd_event, random_affine, small_nifti_header) -> Dwi:
         volume=InMemoryVolumeResource(
             array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
             affine=random_affine,
-            metadata=dict(small_nifti_header),
+            metadata=dict(small_nifti_header)
+            | {
+                "dim": np.array([4, 3, 4, 5, n_vols, 1, 1, 1], np.int16)
+            },  # see nifti dim field
         ),
         bval=InMemoryBvalResource(array=rng.integers(0, 3000, n_vols).astype(float)),
         bvec=InMemoryBvecResource(array=bvec_array),
@@ -111,7 +114,10 @@ def dwi2(abcd_event, random_affine, small_nifti_header) -> Dwi:
         volume=InMemoryVolumeResource(
             array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
             affine=random_affine,
-            metadata=dict(small_nifti_header),
+            metadata=dict(small_nifti_header)
+            | {
+                "dim": np.array([4, 3, 4, 5, n_vols, 1, 1, 1], np.int16)
+            },  # see nifti dim field
         ),
         bval=InMemoryBvalResource(array=rng.integers(0, 3000, n_vols).astype(float)),
         bvec=InMemoryBvecResource(array=bvec_array),
@@ -213,8 +219,15 @@ def test_dwi_concatenate(dwi1: Dwi, dwi2: Dwi):
     # 1. Check metadata from the first DWI is used
     assert dwi_cat.event == dwi1.event
     assert np.allclose(dwi_cat.volume.get_affine(), dwi1.volume.get_affine())
-    assert deep_equal_allclose(
-        dwi_cat.volume.get_metadata(), dwi1.volume.get_metadata()
+    metadata, metadata1 = dwi_cat.volume.get_metadata(), dwi1.volume.get_metadata()
+    assert all(
+        deep_equal_allclose(
+            metadata[k],
+            metadata1[k],
+        )
+        for k in metadata
+        if k
+        != "dim"  # dim is allowed to not match as it must update for the concatenated array
     )
 
     # 2. Check volume data and shape
@@ -281,8 +294,15 @@ def test_dwi_concatenate_metadata_mismatch(dwi1: Dwi, dwi2: Dwi, caplog):
 
     assert "Metadata mismatch" in caplog.text
     # ensure the first DWI's metadata was used
-    assert deep_equal_allclose(
-        dwi_cat.volume.get_metadata(), dwi1.volume.get_metadata()
+    metadata, metadata1 = dwi_cat.volume.get_metadata(), dwi1.volume.get_metadata()
+    assert all(
+        deep_equal_allclose(
+            metadata[k],
+            metadata1[k],
+        )
+        for k in metadata
+        if k
+        != "dim"  # dim is allowed to not match as it must update for the concatenated array
     )
 
 
@@ -321,6 +341,16 @@ def test_dwi_concatenate_nan_metadata_equality(
     with caplog.at_level(logging.WARNING):
         Dwi.concatenate([dwi1, dwi2])
     assert "Metadata mismatch" not in caplog.text
+
+
+def test_concatenate_updates_dim_in_metadata(dwi1: Dwi, dwi2: Dwi):
+    """After concatenation, the header 'dim' field should reflect the new number of volumes."""
+    n1 = dwi1.volume.get_array().shape[3]
+    n2 = dwi2.volume.get_array().shape[3]
+
+    concatenated = Dwi.concatenate([dwi1, dwi2])
+    cat_meta = concatenated.volume.get_metadata()
+    assert cat_meta["dim"][4] == n1 + n2
 
 
 def test_compute_b0_mean(dwi3: Dwi):

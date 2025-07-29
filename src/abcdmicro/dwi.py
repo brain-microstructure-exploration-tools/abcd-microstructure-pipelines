@@ -141,12 +141,21 @@ class Dwi:
                 )
 
             dwi_metadata = dwi.volume.get_metadata()
-            if not deep_equal_allclose(dwi_metadata, ref_metadata):
+            keys_that_are_allowed_to_not_match = ["dim"]
+            common_keys = [k for k in ref_metadata if k in dwi_metadata]
+            if not (
+                set(dwi_metadata.keys()) == set(ref_metadata.keys())
+                and all(
+                    deep_equal_allclose(dwi_metadata[k], ref_metadata[k])
+                    for k in common_keys
+                    if k not in keys_that_are_allowed_to_not_match
+                )
+            ):
                 logging.warning(
                     "Metadata mismatch: Using metadata from DWI 0, but DWI %s has different metadata:",
                     i,
                 )
-                for key in ref_metadata:
+                for key in common_keys:
                     if key not in dwi_metadata:
                         logging.warning(
                             "DWI 0 header has key '%s', but DWI %s header does not.",
@@ -173,11 +182,20 @@ class Dwi:
         concatenated_bval_data = np.concatenate(all_bvals_data)
         concatenated_bvec_data = np.concatenate(all_bvecs_data, axis=0)
 
+        if concatenated_volume_data.ndim != 4:
+            msg = "Concatenated DWI was expected to be a 4D array"
+            raise RuntimeError(msg)
+
         # create new in-memory resources for the concatenated data.
         concatenated_volume = InMemoryVolumeResource(
             array=concatenated_volume_data,
             affine=ref_affine,
-            metadata=ref_metadata,
+            metadata=ref_metadata
+            | {
+                "dim": np.array(
+                    [4, *concatenated_volume_data.shape, 1, 1, 1], dtype=np.int16
+                )
+            },  # see nifti dim field
         )
         concatenated_bval = InMemoryBvalResource(array=concatenated_bval_data)
         concatenated_bvec = InMemoryBvecResource(array=concatenated_bvec_data)
