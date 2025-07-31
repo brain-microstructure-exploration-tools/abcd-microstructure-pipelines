@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import dipy.core.gradients
 import numpy as np
 
+from abcdmicro.dti import Dti
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 from abcdmicro.masks import brain_extract_single
 from abcdmicro.resource import (
@@ -19,7 +20,12 @@ from abcdmicro.resource import (
     InMemoryVolumeResource,
     VolumeResource,
 )
-from abcdmicro.util import PathLike, deep_equal_allclose, normalize_path
+from abcdmicro.util import (
+    PathLike,
+    deep_equal_allclose,
+    normalize_path,
+    update_volume_metadata,
+)
 
 if TYPE_CHECKING:
     from abcdmicro.event import AbcdEvent
@@ -93,12 +99,13 @@ class Dwi:
         mean_b0_array = self.volume.get_array()[:, :, :, gtab.b0s_mask].mean(axis=3)
 
         dwi_metadata = self.volume.get_metadata()
-        metadata = {
-            "descrip": "Mean b0 image extracted from a DWI.",
-        }
-        for key in ["qform_code", "sform_code"]:
-            if key in dwi_metadata:
-                metadata[key] = dwi_metadata[key]
+        metadata = update_volume_metadata(
+            dwi_metadata,
+            mean_b0_array,
+            intent_code=0,  # "none"
+            intent_name="mean_b0",
+        )
+        metadata["descrip"] = "Mean b0 image extracted from a DWI."
 
         return InMemoryVolumeResource(
             array=mean_b0_array,
@@ -191,12 +198,10 @@ class Dwi:
         concatenated_volume = InMemoryVolumeResource(
             array=concatenated_volume_data,
             affine=ref_affine,
-            metadata=ref_metadata
-            | {
-                "dim": np.array(
-                    [4, *concatenated_volume_data.shape, 1, 1, 1], dtype=np.int16
-                )
-            },  # see nifti dim field
+            metadata=update_volume_metadata(
+                ref_metadata,
+                concatenated_volume_data,
+            ),
         )
         concatenated_bval = InMemoryBvalResource(array=concatenated_bval_data)
         concatenated_bvec = InMemoryBvecResource(array=concatenated_bvec_data)
@@ -218,3 +223,7 @@ class Dwi:
             output_path = Path(tmpdir) / "brain_mask.nii.gz"
             brain_mask = brain_extract_single(dwi=self, output_path=output_path)
             return brain_mask.load()
+
+    def estimate_dti(self) -> Dti:
+        """Estimate diffusion tensor image from this DWI"""
+        return Dti.estimate_from_dwi(self)
