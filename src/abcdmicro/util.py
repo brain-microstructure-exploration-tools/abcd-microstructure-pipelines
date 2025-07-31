@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from nibabel.nifti1 import Nifti1Header
 
 PathLike = Path | str
 
@@ -16,6 +17,26 @@ def normalize_path(path_input: PathLike) -> Path:
     and returns a resolved, absolute Path object.
     """
     return Path(path_input).expanduser().resolve()
+
+
+def update_volume_metadata(
+    metadata: dict[str, Any],
+    volume_data_array: np.ndarray,
+    intent_code: int | str | None = None,
+    intent_params: Any = (),
+    intent_name: str = "",
+) -> dict[str, Any]:
+    """Use the convenience of nibabel's header class to update volume metadata.
+    If intent_code is not provided then we don't modify the intent parameters.
+    """
+    header = Nifti1Header()  # convert to a nibabel header in order to get convenience functions like set_data_shape
+    for key, val in metadata.items():
+        header[key] = val
+    header.set_data_dtype(volume_data_array.dtype)
+    header.set_data_shape(volume_data_array.shape)
+    if intent_code is not None:
+        header.set_intent(intent_code, intent_params, intent_name)
+    return dict(header)
 
 
 def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:

@@ -318,9 +318,9 @@ def test_dwi_concatenate_nan_metadata_equality(
     )  # all zero bvals so as not to worry about needing unit bvecs
     bvec = InMemoryBvecResource(np.zeros((arr.shape[3], 3)))
     nan_meta = (
-        {"blah": np.array([np.nan, 7.2])}
+        {"srow_x": np.array([np.nan, 7.2, 0, 0])}
         if test_with_array_of_nan
-        else {"blah": np.nan}
+        else {"scl_slope": np.nan}
     )
 
     dwi1 = Dwi(
