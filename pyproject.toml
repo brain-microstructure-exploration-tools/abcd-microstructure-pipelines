@@ -35,6 +35,7 @@ dependencies = [
   "dipy >=1.9",
   "pandas",
   "hd-bet == 2.0.1",
+  "dmri-amico == 2.1.0",
 ]
 
 [project.optional-dependencies]

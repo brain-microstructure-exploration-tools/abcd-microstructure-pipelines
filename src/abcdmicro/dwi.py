@@ -11,6 +11,7 @@ import numpy as np
 
 from abcdmicro.denoise import denoise_dwi
 from abcdmicro.dti import Dti
+from abcdmicro.noddi import Noddi
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 from abcdmicro.masks import brain_extract_single
 from abcdmicro.resource import (
@@ -237,6 +238,10 @@ class Dwi:
             brain_mask = brain_extract_single(dwi=self, output_path=output_path)
             return brain_mask.load()
 
-    def estimate_dti(self) -> Dti:
+    def estimate_dti(self, mask: VolumeResource | None = None) -> Dti:
         """Estimate diffusion tensor image from this DWI"""
-        return Dti.estimate_from_dwi(self)
+        return Dti.estimate_from_dwi(self, mask)
+    
+    def estimate_noddi(self, mask: VolumeResource | None = None) -> Noddi:
+        """Estimate NODDI model parameters from this DWI"""
+        return Noddi.estimate_from_dwi(self, mask)
