@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import dipy.core.gradients
 import numpy as np
 
+from abcdmicro.denoise import denoise_dwi
 from abcdmicro.dti import Dti
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 from abcdmicro.masks import brain_extract_single
@@ -212,6 +213,18 @@ class Dwi:
             volume=concatenated_volume,
             bval=concatenated_bval,
             bvec=concatenated_bvec,
+        )
+
+    def denoise(self) -> Dwi:
+        """Denoise using Patch2Self from DIPY."""
+
+        denoised_volume = denoise_dwi(self)
+
+        return Dwi(
+            event=self.event,
+            volume=denoised_volume,
+            bval=self.bval,
+            bvec=self.bvec,
         )
 
     def extract_brain(self) -> InMemoryVolumeResource:

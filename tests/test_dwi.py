@@ -143,6 +143,28 @@ def dwi3(abcd_event, random_affine, small_nifti_header) -> Dwi:
     )
 
 
+@pytest.fixture
+def dwi4(abcd_event, random_affine, small_nifti_header) -> Dwi:
+    """An example in-memory Dwi with 10 volumes."""
+    n_vols = 10
+    rng = np.random.default_rng(4616)
+    bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
+    bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
+    return Dwi(
+        event=abcd_event,
+        volume=InMemoryVolumeResource(
+            array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
+            affine=random_affine,
+            metadata=dict(small_nifti_header)
+            | {
+                "dim": np.array([4, 3, 4, 5, n_vols, 1, 1, 1], np.int16)
+            },  # see nifti dim field
+        ),
+        bval=InMemoryBvalResource(array=rng.integers(0, 3000, n_vols).astype(float)),
+        bvec=InMemoryBvecResource(array=bvec_array),
+    )
+
+
 def test_initialization_fails_with_bad_bvecs(volume_array):
     # Non unit b-vectors
     bvec = InMemoryBvecResource(
@@ -382,3 +404,20 @@ def test_extract_brain(dwi3: Dwi, random_affine: np.ndarray, mocker):
         mock_brain_extract_single.assert_called_once_with(dwi=dwi3, output_path=ANY)
         assert np.allclose(mask_actual.get_affine(), mask_in_memory.get_affine())
         assert np.allclose(mask_actual.get_array(), mask_in_memory.get_array())
+
+
+def test_dwi_denoise(dwi4: Dwi):
+    """Test that calling the denoise method calls and appropriately uses the denoising utility in abcdmicro.denoise
+    Patch2self issues a warning if the input dwi has less than 10 volumes."""
+
+    denoised = dwi4.denoise()
+
+    # tests
+    assert isinstance(denoised, Dwi)
+    assert np.allclose(denoised.bval.get(), dwi4.bval.get())
+    assert np.allclose(denoised.bvec.get(), dwi4.bvec.get())
+    assert np.allclose(denoised.volume.get_affine(), dwi4.volume.get_affine())
+    assert denoised.volume.get_array().shape == dwi4.volume.get_array().shape
+    assert not np.allclose(
+        denoised.volume.get_array(), dwi4.volume.get_array()
+    )  # should be different arrays
