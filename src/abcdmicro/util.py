@@ -6,11 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 from nibabel.nifti1 import Nifti1Header
+from numpy.typing import NDArray
 
-from resource import VolumeResource, InMemoryVolumeResource 
-from typing import Any
+from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
 
 PathLike = Path | str
 
@@ -23,7 +22,9 @@ def normalize_path(path_input: PathLike) -> Path:
     return Path(path_input).expanduser().resolve()
 
 
-def create_estimate_volume_resource(array: NDArray[Any], reference_volume: VolumeResource, intent_name: str) -> VolumeResource:
+def create_estimate_volume_resource(
+    array: NDArray[Any], reference_volume: VolumeResource, intent_name: str
+) -> VolumeResource:
     """
     Creates an InMemoryVolumeResource from a numpy array of scalar estimates,
     using the affine and metadata of a reference volume.
@@ -38,7 +39,8 @@ def create_estimate_volume_resource(array: NDArray[Any], reference_volume: Volum
             intent_name=intent_name,
         ),
     )
-    
+
+
 def update_volume_metadata(
     metadata: dict[str, Any],
     volume_data_array: np.ndarray,

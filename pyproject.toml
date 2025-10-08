@@ -36,6 +36,9 @@ dependencies = [
   "pandas",
   "hd-bet == 2.0.1",
   "dmri-amico == 2.1.0",
+  # Required because older amico/setuptools dependency chain
+  # imports backports.tarfile (can be removed if amico drops it)
+  "backports.tarfile",
 ]
 
 [project.optional-dependencies]
