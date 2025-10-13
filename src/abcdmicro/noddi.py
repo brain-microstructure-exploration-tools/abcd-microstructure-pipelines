@@ -41,12 +41,12 @@ class Noddi:
         return Noddi(volume=self.volume.load(), directions=self.directions.load())
 
     def save(self, path: PathLike) -> Noddi:
-        """Save all resources to disk and return a Dti with all resources being on-disk.
+        """Save all resources to disk and return a Noddi with all resources being on-disk.
 
         Args:
             path: The desired file save location, a nifti file path.
 
-        Returns: A Dti with its internal resources being on-disk.
+        Returns: A Noddi with its internal resources being on-disk.
         """
 
         directions_path = (

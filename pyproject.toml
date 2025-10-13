@@ -88,6 +88,9 @@ addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = [
   "error",
+  "ignore:pkg_resources is deprecated as an API:UserWarning", # accommodating AMICO till it is updated
+  "ignore:Deprecated call to `pkg_resources:DeprecationWarning", # accommodating AMICO till it is updated
+  "ignore:.*legacy descoteaux07 SH basis.*:PendingDeprecationWarning", # accommodating AMICO till it is updated
 ]
 log_cli_level = "INFO"
 testpaths = [

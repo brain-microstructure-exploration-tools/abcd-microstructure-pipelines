@@ -421,3 +421,21 @@ def test_dwi_denoise(dwi4: Dwi):
     assert not np.allclose(
         denoised.volume.get_array(), dwi4.volume.get_array()
     )  # should be different arrays
+
+
+def test_estimate_noddi(dwi3: Dwi):
+    """Test that calling compute_noddi calls and appropriately uses the NODDI fitting utility in abcdmicro.noddi"""
+
+    noddi = dwi3.estimate_noddi()
+    assert noddi.volume.get_array().shape[3] == 3  # confirm that output has 3 maps
+    assert (
+        noddi.directions.get_array().shape[3] == 3
+    )  # confirm direction vector has 3 components
+    assert np.allclose(noddi.volume.get_affine(), dwi3.volume.get_affine())
+
+
+def test_estimate_dti(dwi3: Dwi):
+    """Test that calling estimate_dti calls and appropriately uses the DTI fitting utility in abcdmicro.dti"""
+    dti = dwi3.estimate_dti()
+    assert dwi3.volume.get_array().shape[3] == 6
+    assert np.allclose(dti.volume.get_affine(), dwi3.volume.get_affine())
