@@ -76,6 +76,9 @@ class Noddi:
         with tempfile.TemporaryDirectory() as tmpdir:
             ae = amico.Evaluation(output_path=tmpdir)
 
+            # Force the kernels to be written to the temp dir
+            ae.set_config("ATOMS_path", str(Path(tmpdir) / "AMICO_kernels"))
+
             scheme_output_path = Path(tmpdir) / "amico_scheme.scheme"
 
             # Save DWI to file to be read by AMICO
