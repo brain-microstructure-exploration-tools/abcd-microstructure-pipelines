@@ -13,6 +13,7 @@ from scipy.linalg import expm
 from abcdmicro.dwi import Dwi
 from abcdmicro.event import AbcdEvent
 from abcdmicro.io import NiftiVolumeResource
+from abcdmicro.noddi import Noddi
 from abcdmicro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
@@ -421,3 +422,45 @@ def test_dwi_denoise(dwi4: Dwi):
     assert not np.allclose(
         denoised.volume.get_array(), dwi4.volume.get_array()
     )  # should be different arrays
+
+
+def test_estimate_noddi(dwi3: Dwi, mocker, tmp_path: Path, random_affine: np.ndarray):
+    """Test that calling compute_noddi calls and appropriately uses the NODDI fitting utility in abcdmicro.noddi"""
+
+    # Setup mocker
+    rng = np.random.default_rng(18653)
+    mock_noddi = Noddi(
+        volume=InMemoryVolumeResource(
+            array=rng.random(size=(3, 4, 5, 3), dtype=np.float32), affine=random_affine
+        ),
+        directions=InMemoryVolumeResource(
+            array=rng.random(size=(3, 4, 5, 3), dtype=np.float32), affine=random_affine
+        ),
+    )
+
+    mock_estimate_noddi = mocker.patch.object(
+        Noddi,
+        "estimate_from_dwi",
+        return_value=mock_noddi,
+    )
+
+    # Test that the function is called
+    noddi_actual = dwi3.estimate_noddi()
+    mock_estimate_noddi.assert_called_once_with(dwi3, None)
+
+    # test save and reload
+    path = tmp_path / "dummy_noddi.nii.gz"
+    noddi_saved = noddi_actual.save(path=path)
+    assert not noddi_saved.volume.is_loaded
+    assert not noddi_saved.directions.is_loaded
+
+    noddi_reloaded = noddi_saved.load()
+    assert noddi_reloaded.volume.is_loaded
+    assert noddi_reloaded.directions.is_loaded
+
+
+def test_estimate_dti(dwi3: Dwi):
+    """Test that calling estimate_dti calls and appropriately uses the DTI fitting utility in abcdmicro.dti"""
+    dti = dwi3.estimate_dti()
+    assert dwi3.volume.get_array().shape[3] == 6
+    assert np.allclose(dti.volume.get_affine(), dwi3.volume.get_affine())
