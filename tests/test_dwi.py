@@ -211,7 +211,7 @@ def test_dwi_save_load(dwi: Dwi, tmp_path: Path):
 
 def test_dwi_concatenate_empty_list():
     """Tests that concatenating an empty list raises a ValueError."""
-    with pytest.raises(ValueError, match="Cannot concatenate an empty list of DWIs."):
+    with pytest.raises(ValueError, match="Cannot concatenate an empty list of DWIs"):
         Dwi.concatenate([])
 
 
