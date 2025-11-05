@@ -61,7 +61,10 @@ class Noddi:
 
     @staticmethod
     def estimate_from_dwi(
-        dwi: Dwi, mask: VolumeResource | None = None, dpar: float = 1.7e-3
+        dwi: Dwi,
+        mask: VolumeResource | None = None,
+        dpar: float = 1.7e-3,
+        n_kernel_dirs: int = 500,
     ) -> Noddi:
         """Estimate Noddi from a DWI.
 
@@ -71,6 +74,9 @@ class Noddi:
                 such as a brain mask.
             dpar: The parallel diffusivity to be used in the model fitting. If not provided, the default value of
                 1.7e-3 mm^2/s is used, which is suitable for white matter. For gray matter, a value of 1.3e-3 mm^2/s is recommended.
+            n_kernel_dirs: The number of directions to use when generating the AMICO NODDI kernels. This value represents the total
+            count of possible orientations for the response functions across the half-sphere. Default: 500.
+        Returns: A Noddi resource containing the estimated parameters.
         """
         amico.setup()
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -111,7 +117,7 @@ class Noddi:
             ae.model.dPar = dpar
 
             regenerate_kernels = True
-            ae.generate_kernels(regenerate=regenerate_kernels)
+            ae.generate_kernels(regenerate=regenerate_kernels, ndirs=n_kernel_dirs)
             ae.load_kernels()
             ae.fit()
 
@@ -178,9 +184,9 @@ class Noddi:
             Returns 3D volumes for modulated NDI and ODI maps, as VolumeResources.
         """
 
-        tf = 1.0 - self.fwf
-        modulated_ndi = self.ndi * tf
-        modulated_odi = self.odi * tf
+        tf = 1.0 - self.fwf.get_array()
+        modulated_ndi = self.ndi.get_array() * tf
+        modulated_odi = self.odi.get_array() * tf
 
         return (
             create_estimate_volume_resource(
