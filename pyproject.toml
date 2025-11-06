@@ -39,6 +39,7 @@ dependencies = [
   # Required because older amico/setuptools dependency chain
   # imports backports.tarfile (can be removed if amico drops it)
   "backports.tarfile",
+  "TractSeg",
 ]
 
 [project.optional-dependencies]
