@@ -242,6 +242,11 @@ class Dwi:
         """Estimate diffusion tensor image from this DWI"""
         return Dti.estimate_from_dwi(self, mask)
 
-    def estimate_noddi(self, mask: VolumeResource | None = None) -> Noddi:
-        """Estimate NODDI model parameters from this DWI"""
-        return Noddi.estimate_from_dwi(self, mask)
+    def estimate_noddi(
+        self,
+        mask: VolumeResource | None = None,
+        dpar: float = 1.7e-3,
+        n_kernel_dirs: int = 500,
+    ) -> Noddi:
+        """Estimate NODDI model parameters from this DWI. See `Noddi.estimate_from_dwi` for details."""
+        return Noddi.estimate_from_dwi(self, mask, dpar, n_kernel_dirs)
