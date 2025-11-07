@@ -21,26 +21,17 @@ if TYPE_CHECKING:
     from abcdmicro.dwi import Dwi
 
 
-def estimate_response_function(
-    dwi: Dwi, mask: VolumeResource, flip_bvecs_x: bool = True
+def _estimate_response_function(
+    volume_data: np.ndarray, mask_data: np.ndarray, bvals: np.ndarray, bvecs: np.ndarray
 ) -> np.ndarray:
     """Estimate the single-shell single-tissue response function from a DWI dataset using the SSST method.
-
     Args:
-        dwi: The DWI dataset.
-        mask: A brain mask VolumeResource.
+        volume_data: The DWI volume data array.
+        mask_data: A brain mask array.
+        bvals: The b-values array.
+        bvecs: The b-vectors array.
+    Returns: The estimated response function as a numpy array.
     """
-
-    # Load data as numpy arrays
-    bvals = dwi.bval.get()
-    bvecs = dwi.bvec.get()
-    volume_data = dwi.volume.get_array()
-    mask_data = mask.get_array().astype(int)
-
-    if flip_bvecs_x:
-        bvecs[:, 0] = -bvecs[
-            :, 0
-        ]  # https://github.com/brain-microstructure-exploration-tools/abcd-noddi-tbss-experiments/issues/7 # flip x axis to match MRtrix3 convention
 
     # b-values above 1200 aren't great for DTI estimation. dipy uses DTI to model response functions.
     low_b_mask = bvals <= 1200  # was gtab.bvals <= 1200
@@ -109,7 +100,7 @@ def compute_csd_fods(
     if flip_bvecs_x:
         bvecs[:, 0] = -bvecs[:, 0]
 
-    response = estimate_response_function(dwi, mask, flip_bvecs_x=flip_bvecs_x)
+    response = _estimate_response_function(volume_data, mask_data, bvals, bvecs)
     gtab = gradient_table(bvals, bvecs=bvecs)
     csd_model = ConstrainedSphericalDeconvModel(
         gtab, response, sh_order_max=sh_order_max
@@ -147,7 +138,7 @@ def compute_csd_peaks(
     if flip_bvecs_x:
         bvecs[:, 0] = -bvecs[:, 0]  # flip x axis to match MRtrix3 convention
     logging.info("Estimating response function...")
-    response = estimate_response_function(dwi, mask, flip_bvecs_x=flip_bvecs_x)
+    response = _estimate_response_function(volume_data, mask_data, bvals, bvecs)
 
     gtab = gradient_table(bvals, bvecs=bvecs)
     csd_model = ConstrainedSphericalDeconvModel(
