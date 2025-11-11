@@ -220,7 +220,7 @@ def combine_csd_peaks_to_vector_volume(
     values_expanded = np.expand_dims(values, axis=-1)
     csd_peaks = dirs * values_expanded
     spatial_dims = csd_peaks.shape[:-2]
-    n_peak_dims = csd_peaks.shape[:-1] * 3
+    n_peak_dims = csd_peaks.shape[-2] * 3
     peaks_array = csd_peaks.reshape(*spatial_dims, n_peak_dims)
 
     return create_estimate_volume_resource(
