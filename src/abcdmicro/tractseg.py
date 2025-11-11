@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 
 from tractseg.python_api import run_tractseg
 
-from abcdmicro.fods import combine_csd_peaks_to_vector_volume, compute_csd_peaks
-from abcdmicro.resource import VolumeResource
+from abcdmicro.csd import combine_csd_peaks_to_vector_volume, compute_csd_peaks
+from abcdmicro.resource import ResponseFunctionResource, VolumeResource
 from abcdmicro.util import create_estimate_volume_resource
 
 if TYPE_CHECKING:
@@ -14,14 +14,18 @@ if TYPE_CHECKING:
 
 
 def extract_tractseg(
-    dwi: Dwi, mask: VolumeResource, output_type: str = "tract_segmentation"
+    dwi: Dwi,
+    mask: VolumeResource,
+    response: ResponseFunctionResource | None = None,
+    output_type: str = "tract_segmentation",
 ) -> VolumeResource:
     """Run TractSeg on a DWI dataset to segment white matter tracts.
 
     Args:
-        dwi: The DWI dataset.
-        mask: A brain mask VolumeResource.
-        output_type: TractSeg can segment not only bundles, but also the end regions of bundles.
+        dwi: The Diffusion Weighted Imaging (DWI) dataset.
+        mask: A binary brain mask volume.
+        response (Optional): The single-fiber response function. If `None`, the response function is estimated using an ROI in the center of the brain mask.
+        output_type (Optional): TractSeg can segment not only bundles, but also the end regions of bundles.
             Moreover it can create Tract Orientation Maps (TOM).
             'tract_segmentation' [DEFAULT]: Segmentation of bundles (72 bundles).
             'endings_segmentation': Segmentation of bundle end regions (72 bundles).
@@ -34,21 +38,17 @@ def extract_tractseg(
     """
 
     # Compute CSD peaks
-    # MRtrix by default outputs 3 peaks not the dipy default of 5
-    # Note: MRtrix3 performs peak finding internally via Newton optimization search.
-    # Dipy using discrete sampling approach
-    csd_peaks = compute_csd_peaks(dwi, mask, flip_bvecs_x=True, n_peaks=3)
+    csd_peaks = compute_csd_peaks(
+        dwi,
+        mask,
+        response=response,
+        flip_bvecs_x=True,
+        n_peaks=3,  # MRtrix3 uses 3 peaks
+    )
     csd_peaks_vector = combine_csd_peaks_to_vector_volume(
         csd_peaks_dirs=csd_peaks[0], csd_peaks_values=csd_peaks[1]
     )
     # Run TractSeg
-    # run_tractseg(data, output_type="tract_segmentation",
-    #              single_orientation=False, dropout_sampling=False, threshold=0.5,
-    #              bundle_specific_postprocessing=True, get_probs=False, peak_threshold=0.1,
-    #              postprocess=False, peak_regression_part="All", input_type="peaks",
-    #              blob_size_thr=50, nr_cpus=-1, verbose=False, manual_exp_name=None,
-    #              inference_batch_size=1, tract_definition="TractQuerier+", bedpostX_input=False,
-    #              tract_segmentations_path=None, TOM_dilation=1, unit_test=False):
     logging.info("Running tractseg...")
     segmentation = run_tractseg(
         data=csd_peaks_vector.get_array(), output_type=output_type
@@ -57,5 +57,5 @@ def extract_tractseg(
     return create_estimate_volume_resource(
         array=segmentation,
         reference_volume=dwi.volume,
-        intent_name="TRACTSEG_SEGMENTATION",
+        intent_name="TRACTSEG",
     )
