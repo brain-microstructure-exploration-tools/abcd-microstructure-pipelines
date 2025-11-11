@@ -26,13 +26,17 @@ if TYPE_CHECKING:
 
 
 def estimate_response_function(
-    dwi: Dwi, mask: VolumeResource, flip_bvecs_x: bool = True
+    dwi: Dwi,
+    mask: VolumeResource,
+    flip_bvecs_x: bool = True,
+    fa_thr: float = 0.8,
 ) -> InMemoryResponseFunctionResource:
     """Estimate the single-shell single-tissue response function from a DWI dataset using the SSST method.
     Args:
         dwi: The Diffusion Weighted Imaging (DWI) dataset.
         mask: A binary brain mask volume. This is used to extract an ROI at the center of the brain.
-        flip_bvecs_x: Whether to flip the x-component of the b-vectors to match MRtrix3 conventio
+        flip_bvecs_x: Whether to flip the x-component of the b-vectors to match MRtrix3 convention.
+        fa_thr: FA threshold for calculating the response function.
     Returns: A resource containing the estimated single-tissue response function.
     """
 
@@ -61,7 +65,7 @@ def estimate_response_function(
         data_low_b,
         roi_center=roi_center,
         roi_radii=roi_radii,
-        fa_thr=0.8,
+        fa_thr=fa_thr,
     )
     mask_for_response *= mask_data  # ensure we stay inside brain mask (almost certainly we already were but just in case)
 
@@ -101,7 +105,7 @@ def compute_csd_fods(
         mask: A binary brain mask volume. FODs are computed only within this mask.
         response (Optional): The single-fiber response function. If `None`, the response function is estimated using an ROI in the center of the brain mask.
         flip_bvecs_x (Optional): Whether to flip the x-component of the b-vectors to match MRtrix3 convention.
-        MRtrix3_format (Optional): If True, converts SH coefficients between legacy-descoteaux07 and tournier07.
+        mrtrix_format (Optional): If True, converts SH coefficients between legacy-descoteaux07 and tournier07.
         sh_order_max (Optional): Maximum spherical harmonic order to use in the CSD model. Default is 8.
     Returns: Array containing the spherical harmonic coefficients of the obtained FODs.
     """
