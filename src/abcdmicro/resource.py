@@ -117,3 +117,36 @@ class InMemoryBvecResource(BvecResource):
 
     def get(self) -> NDArray[np.floating]:
         return self.array
+
+
+class ResponseFunctionResource(Resource):
+    """Base class for resources representing a response function associated with a DWI."""
+
+    @abstractmethod
+    def get(self) -> tuple[NDArray, np.floating]:
+        """Get the underlying response function"""
+
+    def load(self) -> ResponseFunctionResource:
+        return self
+
+
+@dataclass
+class InMemoryResponseFunctionResource(ResponseFunctionResource):
+    """A response function that is loaded into memory."""
+
+    is_loaded: ClassVar[bool] = True
+
+    evals: NDArray[np.floating]
+    """Eigenvales of the response function"""
+
+    avg_signal: np.floating
+    """ The average non-diffusion weighted signal within the voxels used to calculate the response function"""
+
+    def __post_init__(self) -> None:
+        # Check that the eigen values have the expected shape
+        if self.evals.ndim != 1 or self.evals.shape[0] != 3:
+            msg = f"Encountered wrong eigen values array shape {self.evals.shape}. Expected shape (3,)."
+            raise ValueError(msg)
+
+    def get(self) -> tuple[NDArray, np.floating]:
+        return (self.evals, self.avg_signal)
