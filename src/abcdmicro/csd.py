@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple, List
 
 import numpy as np
 from dipy.core.gradients import gradient_table
@@ -30,6 +30,7 @@ def estimate_response_function(
     mask: VolumeResource,
     flip_bvecs_x: bool = True,
     fa_thr: float = 0.8,
+    sh_order_max: int = 8
 ) -> InMemoryResponseFunctionResource:
     """Estimate the single-shell single-tissue response function from a DWI dataset using the SSST method.
     Args:
@@ -87,7 +88,56 @@ def estimate_response_function(
             "Ratio of response diffusion tensor eigenvalues is greater than 0.3. For a response function we expect more prolateness. Something may be wrong."
         )
 
-    return InMemoryResponseFunctionResource(evals=response[0], avg_signal=response[1])
+    return InMemoryResponseFunctionResource.estimate_from_prolate_tensor(
+        response,
+         gtab = gtab_low_b,
+         sh_order_max=sh_order_max
+         )
+
+def aggregate_response_functions(responses: List[ResponseFunctionResource]):
+
+
+    """
+    Based on: https://github.com/MRtrix3/mrtrix3/blob/4e4b6d4aa429047b285e7e303f016619926a47d3/bin/responsemean#L72
+    https://community.mrtrix.org/t/reasoning-behind-responsemean-weighted-average/7270
+    Note: weights don't add to 1?
+    """
+  
+    # TODO: Check that all responses have the same number of coeffs
+
+
+    # from MRtrix:
+    # New approach: Calculate a multiplier to use for each subject, based on the geometric mean
+    #   scaling factor required to bring the subject toward the group mean l=0 terms (across shells)
+
+
+#   mean_lzero_terms = [ sum([ subject[row][0] for subject in data ])/len(data) for row in range(len(data[0])) ]
+#   app.debug('Mean l=0 terms: ' + str(mean_lzero_terms))
+
+#   weighted_sum_coeffs = [[0.0] * len(data[0][0]) for _ in range(len(data[0]))] #pylint: disable=unused-variable
+#   for subject in data:
+#     if app.ARGS.legacy:
+#       multiplier = 1.0
+#     else:
+#       subj_lzero_terms = [line[0] for line in subject]
+#       log_multiplier = 0.0
+#       for subj_lzero, mean_lzero in zip(subj_lzero_terms, mean_lzero_terms):
+#         log_multiplier += math.log(mean_lzero / subj_lzero)
+#       log_multiplier /= len(data[0])
+#       multiplier = math.exp(log_multiplier)
+#       app.debug('Subject l=0 terms: ' + str(subj_lzero_terms))
+#       app.debug('Resulting multipler: ' + str(multiplier))
+#     weighted_sum_coeffs = [ [ a + multiplier*b for a, b in zip(linea, lineb) ] for linea, lineb in zip(weighted_sum_coeffs, subject) ]
+
+#   mean_coeffs = [ [ f/len(data) for f in line ] for line in weighted_sum_coeffs ]
+#   matrix.save_matrix(app.ARGS.output, mean_coeffs, force=app.FORCE_OVERWRITE)
+
+
+    # Ebrahim:
+    # evals_array = np.array([rf[0] for rf in response_functions])
+    # S0_array = np.array([rf[1] for rf in response_functions])
+    # return np.exp(np.log(evals_array).mean(axis=0)), np.mean(S0_array)
+    pass
 
 
 def compute_csd_fods(
@@ -127,7 +177,7 @@ def compute_csd_fods(
 
     gtab = gradient_table(bvals, bvecs=bvecs)
     csd_model = ConstrainedSphericalDeconvModel(
-        gtab, response.get(), sh_order_max=sh_order_max
+        gtab, response.get_dipy_object(), sh_order_max=sh_order_max
     )
     csd_fit = csd_model.fit(volume_data, mask=mask_data)
 
@@ -179,7 +229,7 @@ def compute_csd_peaks(
         )
 
     gtab = gradient_table(bvals, bvecs=bvecs)
-    csd_model = ConstrainedSphericalDeconvModel(gtab, response.get(), sh_order_max=8)
+    csd_model = ConstrainedSphericalDeconvModel(gtab, response.get_dipy_object(), sh_order_max=8)
 
     logging.info("Computing peaks...")
     csd_peaks = peaks_from_model(
