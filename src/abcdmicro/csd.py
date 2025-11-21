@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Tuple, List
+from typing import TYPE_CHECKING
 
 import numpy as np
 from dipy.core.gradients import gradient_table
@@ -30,7 +30,7 @@ def estimate_response_function(
     mask: VolumeResource,
     flip_bvecs_x: bool = True,
     fa_thr: float = 0.8,
-    sh_order_max: int = 8
+    sh_order_max: int = 8,
 ) -> InMemoryResponseFunctionResource:
     """Estimate the single-shell single-tissue response function from a DWI dataset using the SSST method.
     Args:
@@ -89,22 +89,18 @@ def estimate_response_function(
         )
 
     return InMemoryResponseFunctionResource.estimate_from_prolate_tensor(
-        response,
-         gtab = gtab_low_b,
-         sh_order_max=sh_order_max
-         )
-
-def aggregate_response_functions(responses: List[ResponseFunctionResource]):
+        response, gtab=gtab_low_b, sh_order_max=sh_order_max
+    )
 
 
+def aggregate_response_functions(responses: list[ResponseFunctionResource]):
     """
     Based on: https://github.com/MRtrix3/mrtrix3/blob/4e4b6d4aa429047b285e7e303f016619926a47d3/bin/responsemean#L72
     https://community.mrtrix.org/t/reasoning-behind-responsemean-weighted-average/7270
     Note: weights don't add to 1?
     """
-  
-    # TODO: Check that all responses have the same number of coeffs
 
+    # TODO: Check that all responses have the same number of coeffs
 
     # from MRtrix:
     # New approach: Calculate a multiplier to use for each subject, based on the geometric mean
@@ -133,11 +129,10 @@ def aggregate_response_functions(responses: List[ResponseFunctionResource]):
 #   matrix.save_matrix(app.ARGS.output, mean_coeffs, force=app.FORCE_OVERWRITE)
 
 
-    # Ebrahim:
-    # evals_array = np.array([rf[0] for rf in response_functions])
-    # S0_array = np.array([rf[1] for rf in response_functions])
-    # return np.exp(np.log(evals_array).mean(axis=0)), np.mean(S0_array)
-    pass
+# Ebrahim:
+# evals_array = np.array([rf[0] for rf in response_functions])
+# S0_array = np.array([rf[1] for rf in response_functions])
+# return np.exp(np.log(evals_array).mean(axis=0)), np.mean(S0_array)
 
 
 def compute_csd_fods(
@@ -229,7 +224,9 @@ def compute_csd_peaks(
         )
 
     gtab = gradient_table(bvals, bvecs=bvecs)
-    csd_model = ConstrainedSphericalDeconvModel(gtab, response.get_dipy_object(), sh_order_max=8)
+    csd_model = ConstrainedSphericalDeconvModel(
+        gtab, response.get_dipy_object(), sh_order_max=8
+    )
 
     logging.info("Computing peaks...")
     csd_peaks = peaks_from_model(
