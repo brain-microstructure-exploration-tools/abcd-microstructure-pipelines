@@ -157,8 +157,6 @@ def build_template(
 
     for _i in range(iterations):
         affine_list = []
-        avg_warp = None
-        avg_template = None
 
         for idx, moving_image in enumerate(ants_image_list):
             result = ants.registration(
@@ -169,8 +167,13 @@ def build_template(
 
             # This assumes Syn result where result has L == 2 (warp, affine.mat)
             affine_list.append(result["fwdtransforms"][-1])  # Affine transform is last
-            avg_warp = avg_warp + result["fwdtransforms"][0] * weights[idx]
-            avg_template = avg_template + result["warpedmovout"] * weights[idx]
+
+            if idx == 0:
+                avg_warp = result["fwdtransforms"][0] * weights[idx]
+                avg_template = result["warpedmovout"] * weights[idx]
+            else:
+                avg_warp = avg_warp + result["fwdtransforms"][0] * weights[idx]
+                avg_template = avg_template + result["warpedmovout"] * weights[idx]
 
         # Average affine transforms and forward warp fields
         avg_affine_transform = ants.average_affine_transform(affine_list)
@@ -181,9 +184,9 @@ def build_template(
             aff_fn = str(Path(tmpdir) / "avgAffine.mat")
             ants.write_transform(avg_affine_transform, aff_fn)
 
-            # TODO: apply the deformation ield with negative!
-            # wscl = (-1.0) * gradient_step
-            # wavg = wavg * wscl
+            gradient_step = 0.2
+            wscl = (-1.0) * gradient_step
+            avg_warp = avg_warp * wscl
             avg_warp_resliced = ants.apply_transforms(
                 fixed=avg_template,
                 moving=avg_warp,
@@ -276,8 +279,6 @@ def build_multi_metric_template(
 
     for _i in range(iterations):
         affine_list = []
-        avg_warp = None
-        avg_template = None
 
         for idx in range(n_subj):
             # Assume first metric is the primary metric for affine.
@@ -311,10 +312,14 @@ def build_multi_metric_template(
             )
 
             affine_list.append(affine_transform)
-            avg_warp = (
-                avg_warp + deformable_result["fwdtransforms"][0] * 1 / n_subj
-            )  # The affine component should be identity
-            avg_template = avg_template + deformable_result["warpedmovout"] * 1 / n_subj
+            if idx == 0:
+                avg_warp = deformable_result["fwdtransforms"][0] * 1 / n_subj
+                avg_template = deformable_result["warpedmovout"] * 1 / n_subj
+            else:
+                avg_warp = avg_warp + deformable_result["fwdtransforms"][0] * 1 / n_subj
+                avg_template = (
+                    avg_template + deformable_result["warpedmovout"] * 1 / n_subj
+                )
 
         # Average affine transforms and forward warp fields
         avg_affine_transform = ants.average_affine_transform(affine_list)
@@ -324,6 +329,10 @@ def build_multi_metric_template(
             # Apply average transform to updated template
             aff_fn = str(Path(tmpdir) / "avgAffine.mat")
             ants.write_transform(avg_affine_transform, aff_fn)
+
+            gradient_step = 0.2
+            wscl = (-1.0) * gradient_step
+            avg_warp = avg_warp * wscl
 
             avg_warp_resliced = ants.apply_transforms(
                 fixed=avg_template,
