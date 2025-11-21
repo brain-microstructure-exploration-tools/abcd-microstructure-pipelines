@@ -99,8 +99,8 @@ def average_volumes(volume_list: list[VolumeResource]) -> VolumeResource:
         1.0 / len(volume_list), len(volume_list)
     )  # Equal weighting for all volumes
     average_volume = volume_list[0].get_array() * 0
-    for i in range(len(volume_list)):
-        temp = volume_list[i].get_array() * weights[i]
+    for i, vol in enumerate(volume_list):
+        temp = vol.get_array() * weights[i]
         average_volume = average_volume + temp
 
     return InMemoryVolumeResource(
@@ -144,7 +144,9 @@ def build_template(
         if vol_array.ndim > 3:  # Check that the input volume is 3D
             error_message = f"Input volume dimensions must be 2D or 3D. Found {vol_array.ndim}D instead."
             raise ValueError(error_message)
-        ants_image_list.append(ants.from_numpy(vol_array))
+        ants_image_list.append(
+            ants.from_numpy(vol_array)
+        )  # This copies the data. https://github.com/ANTsX/ANTsPy/blob/4888946a8b59a55cc784585796423c65268369ab/ants/core/ants_image_io.py#L137
 
     if initial_template is None:
         current_template = ants.average_images(ants_image_list)
@@ -169,10 +171,13 @@ def build_template(
             affine_list.append(result["fwdtransforms"][-1])  # Affine transform is last
 
             if idx == 0:
-                avg_warp = result["fwdtransforms"][0] * weights[idx]
+                avg_warp = ants.image_read(result["fwdtransforms"][0]) * weights[idx]
                 avg_template = result["warpedmovout"] * weights[idx]
             else:
-                avg_warp = avg_warp + result["fwdtransforms"][0] * weights[idx]
+                avg_warp = (
+                    avg_warp
+                    + ants.image_read(result["fwdtransforms"][0]) * weights[idx]
+                )
                 avg_template = avg_template + result["warpedmovout"] * weights[idx]
 
         # Average affine transforms and forward warp fields
@@ -213,6 +218,7 @@ def build_template(
                 + sharpened_template * (1.0 - blending_weight)
             )
 
+    # .numpy() also copies the data
     return InMemoryVolumeResource(
         current_template.numpy(),
         volume_list[0].get_affine(),
@@ -222,15 +228,16 @@ def build_template(
 
 def build_multi_metric_template(
     subject_list: list[dict[str, VolumeResource]],
-    initial_template: VolumeResource | None = None,
+    initial_template: dict[str, VolumeResource] | None = None,
     weights: list[np.floating] | None = None,
     iterations: int = 3,
-) -> VolumeResource:
+) -> dict[str, InMemoryVolumeResource]:
     """
     Constructs an unbiased mean shape template from a list of input volumes using
     an iterative group-wise registration approach based on ANTs, utilizing
     multiple image metrics simultaneously. See 'build_template' for more details.
 
+    TODO: Add primary metric argument?
     NOTE: The current implementation assumes input images are roughly pre-aligned.
 
     Args:
@@ -272,10 +279,13 @@ def build_multi_metric_template(
 
     # TODO: Keep or remove this?
     if initial_template is None:
-        current_template = ants.average_images(ants_image_list)
-    else:
-        ants_initial_template = ants.from_numpy(initial_template.get_array())
-        current_template = ants_initial_template.clone()
+        current_template = {}
+        for m in metrics:
+            current_template[m] = ants.average_images(ants_image_list[m])
+    # else:
+    #     #TODO: Update this
+    #     ants_initial_template = ants.from_numpy(initial_template.get_array())
+    #     current_template = ants_initial_template.clone()
 
     for _i in range(iterations):
         affine_list = []
@@ -285,41 +295,87 @@ def build_multi_metric_template(
             # TODO: user can specify this as argument
 
             # rigid/affine registration to capture global translation, rotation, and scaling
-            main_moving_image = ants_image_list[metrics[0]][idx]
+            main_metric = metrics[0]
+            main_moving_image = ants_image_list[main_metric][idx]
             mat_result = ants.registration(
-                fixed=current_template,
+                fixed=current_template[main_metric],
                 moving=main_moving_image,
                 type_of_transform="Affine",  # Can also be 'Rigid'
             )
 
-            affine_transform = mat_result["fwdtransforms"]
+            affine_transform = mat_result["fwdtransforms"][0]
 
             multivariate_metrics = []
             for k in range(1, len(metrics)):
                 moving_image = ants_image_list[metrics[k]][idx]
                 multivariate_metrics.append(
-                    ["mattes", current_template, moving_image, weights[k], 1]
+                    [
+                        "mattes",
+                        current_template[metrics[k]],
+                        moving_image,
+                        weights[k],
+                        1,
+                    ]
                 )
 
             # ---  Deformable Registration  ---
             # We use the affine result's transform as the initialization for SyN.
             deformable_result = ants.registration(
-                fixed=current_template,
+                fixed=current_template[main_metric],
                 moving=main_moving_image,
                 multivariate_extras=multivariate_metrics,
                 type_of_transform="SyNOnly",
                 initial_transform=affine_transform,
             )
 
+            warp_field = deformable_result["fwdtransforms"][0]
             affine_list.append(affine_transform)
             if idx == 0:
-                avg_warp = deformable_result["fwdtransforms"][0] * 1 / n_subj
-                avg_template = deformable_result["warpedmovout"] * 1 / n_subj
+                avg_warp = ants.image_read(warp_field) * 1 / n_subj
+                current_template[main_metric] = deformable_result["warpedmovout"] * (
+                    1 / n_subj
+                )  # This is just the main metric
+
+                # Update template for each metric
+                for k in range(1, len(metrics)):
+                    moving_image = ants_image_list[metrics[k]][idx]
+                    current_template[metrics[k]] = (1 / n_subj) * ants.apply_transforms(
+                        fixed=current_template[metrics[k]],
+                        moving=moving_image,
+                        imagetype=1,
+                        transformlist=[
+                            warp_field,
+                            affine_transform,
+                        ],
+                        whichtoinvert=[0, 0],
+                    )
             else:
-                avg_warp = avg_warp + deformable_result["fwdtransforms"][0] * 1 / n_subj
-                avg_template = (
-                    avg_template + deformable_result["warpedmovout"] * 1 / n_subj
+                avg_warp = (
+                    avg_warp
+                    + ants.image_read(deformable_result["fwdtransforms"][0])
+                    * 1
+                    / n_subj
                 )
+                current_template[main_metric] = (
+                    current_template[main_metric]
+                    + deformable_result["warpedmovout"] * 1 / n_subj
+                )  # This is just the main metric
+
+                # Update template for each metric
+                for k in range(1, len(metrics)):
+                    moving_image = ants_image_list[metrics[k]][idx]
+                    current_template[metrics[k]] = current_template[metrics[k]] + (
+                        1 / n_subj
+                    ) * ants.apply_transforms(
+                        fixed=current_template[metrics[k]],
+                        moving=moving_image,
+                        imagetype=1,
+                        transformlist=[
+                            warp_field,
+                            affine_transform,
+                        ],
+                        whichtoinvert=[0, 0],
+                    )
 
         # Average affine transforms and forward warp fields
         avg_affine_transform = ants.average_affine_transform(affine_list)
@@ -335,7 +391,7 @@ def build_multi_metric_template(
             avg_warp = avg_warp * wscl
 
             avg_warp_resliced = ants.apply_transforms(
-                fixed=avg_template,
+                fixed=current_template[main_metric],
                 moving=avg_warp,
                 imagetype=1,
                 transformlist=aff_fn,
@@ -344,27 +400,33 @@ def build_multi_metric_template(
             wavg_fn = str(Path(tmpdir) / "avgWarp.nii.gz")
             ants.image_write(avg_warp_resliced, wavg_fn)
 
-            current_template = ants.apply_transforms(
-                fixed=avg_template,
-                moving=avg_template,
-                transformlist=[wavg_fn, aff_fn],
-                whichtoinvert=[0, 1],
-            )
+            for m in metrics:
+                current_template[m] = ants.apply_transforms(
+                    fixed=current_template[m],
+                    moving=current_template[m],
+                    transformlist=[wavg_fn, aff_fn],
+                    whichtoinvert=[0, 1],
+                )
 
         # Sharpen template
         blending_weight = 0.75
         if blending_weight is not None:
-            sharpened_template = ants.iMath(current_template, "Sharpen")
-            current_template = (
-                current_template * blending_weight
-                + sharpened_template * (1.0 - blending_weight)
-            )
+            for m in metrics:
+                sharpened_template = ants.iMath(current_template[m], "Sharpen")
+                current_template[m] = current_template[
+                    m
+                ] * blending_weight + sharpened_template * (1.0 - blending_weight)
 
     reference_volume = subject_list[0][metrics[0]]
-    return InMemoryVolumeResource(
-        current_template.numpy(),
-        reference_volume.get_affine(),
-        update_volume_metadata(
-            reference_volume.get_metadata(), current_template.numpy()
-        ),
-    )
+
+    # Return a dictionary of volume resource templates
+    result = {}
+    for m in metrics:
+        result[m] = InMemoryVolumeResource(
+            current_template[m].numpy(),
+            reference_volume.get_affine(),
+            update_volume_metadata(
+                reference_volume.get_metadata(), current_template[m].numpy()
+            ),
+        )
+    return result
