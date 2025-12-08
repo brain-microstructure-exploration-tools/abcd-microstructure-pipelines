@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import ants
@@ -13,7 +14,7 @@ from abcdmicro.util import update_volume_metadata
 
 
 def average_volumes(
-    volume_list: list[VolumeResource], normalize: bool = True
+    volume_list: Sequence[VolumeResource], normalize: bool = True
 ) -> VolumeResource:
     """
     Calculates the simple arithmetic average (mean) of a list of volumes.
@@ -132,7 +133,7 @@ def _update_template(
 
 
 def build_template(
-    volume_list: list[VolumeResource],
+    volume_list: Sequence[VolumeResource],
     initial_template: VolumeResource | None = None,
     iterations: int = 3,
 ) -> VolumeResource:
@@ -242,7 +243,7 @@ def _register_subject_multimetric(
         moving=subject_volumes[primary_mod],
         type_of_transform="Affine",
     )
-    affine_transform = affine_result["fwdtransforms"][0]
+    affine_transform = affine_result["fwdtransforms"][-1]
 
     # Setup multivariate metrics using remaining modalities
     multivariate_metrics = []
@@ -291,7 +292,7 @@ def _register_subject_multimetric(
 
 
 def _reformat_subject_list(
-    subject_list: list[dict[str, VolumeResource]],
+    subject_list: Sequence[Mapping[str, VolumeResource]],
 ) -> dict[str, list[VolumeResource]]:
     """
     Reformats a list of subject dictionaries into a dictionary of lists per modality.
@@ -311,7 +312,7 @@ def _reformat_subject_list(
 
 
 def build_multi_metric_template(
-    subject_list: list[dict[str, VolumeResource]],
+    subject_list: Sequence[Mapping[str, VolumeResource]],
     initial_template: dict[str, VolumeResource] | None = None,
     weights: dict[str, np.floating] | None = None,
     iterations: int = 3,
@@ -339,6 +340,16 @@ def build_multi_metric_template(
     modalities = list(subject_list[0].keys())
     primary_mod = modalities[0]
 
+    # Check the the input variables all reference the same image modalities
+    for d, name in zip(
+        [weights, initial_template], ["weights", "initial_template"], strict=False
+    ):
+        if d and list(d.keys()) != modalities:
+            error_msg = (
+                f"Inconsistent keys detected in '{name}' compared to subject_list"
+            )
+            raise ValueError(error_msg)
+
     # Convert to a list of volumes for each metric type
     volume_list = _reformat_subject_list(subject_list)
 
@@ -357,12 +368,6 @@ def build_multi_metric_template(
         weights = dict.fromkeys(modalities, 1.0)  # Equal weighting
 
     weights = {m: weights[m] / weights[primary_mod] for m in modalities}
-
-    if len(weights) != len(modalities):
-        error_msg = (
-            "The number of weights does not match the number of specified modalities"
-        )
-        raise ValueError(error_msg)
 
     n_subj = len(subject_list)
     for _i in range(iterations):
