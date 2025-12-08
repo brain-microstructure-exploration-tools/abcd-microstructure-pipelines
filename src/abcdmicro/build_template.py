@@ -28,8 +28,8 @@ def average_volumes(
 
     biggest = 0
     biggestind = 0
-    for k in range(len(volume_list)):
-        sz = np.prod(volume_list[k].get_array().shape)
+    for k, _v in enumerate(volume_list):
+        sz = np.prod(_v.get_array().shape)
         if sz > biggest:
             biggest = sz
             biggestind = k
