@@ -46,12 +46,13 @@ def estimate_response_function(
     volume_data = dwi.volume.get_array()
     mask_data = mask.get_array().astype(int)
 
+    bvecs_mod = bvecs.copy()
     if flip_bvecs_x:
-        bvecs[:, 0] = -bvecs[:, 0]
+        bvecs_mod[:, 0] = -bvecs_mod[:, 0]
 
     # b-values above 1200 aren't great for DTI estimation. dipy uses DTI to model response functions.
     low_b_mask = bvals <= 1200
-    gtab_low_b = gradient_table(bvals[low_b_mask], bvecs=bvecs[low_b_mask])
+    gtab_low_b = gradient_table(bvals[low_b_mask], bvecs=bvecs_mod[low_b_mask])
     data_low_b = volume_data[..., low_b_mask]
 
     # determine roi center based on brain mask (aiming for corpus callosum)
@@ -104,9 +105,9 @@ def compute_csd_fods(
         dwi: The Diffusion Weighted Imaging (DWI) dataset.
         mask: A binary brain mask volume. FODs are computed only within this mask.
         response (Optional): The single-fiber response function. If `None`, the response function is estimated using an ROI in the center of the brain mask.
-        flip_bvecs_x (Optional): Whether to flip the x-component of the b-vectors to match MRtrix3 convention.
-        mrtrix_format (Optional): If True, converts SH coefficients between legacy-descoteaux07 and tournier07.
-        sh_order_max (Optional): Maximum spherical harmonic order to use in the CSD model. Default is 8.
+        flip_bvecs_x: Whether to flip the x-component of the b-vectors to match MRtrix3 convention. Default is True.
+        mrtrix_format: If True, converts SH coefficients between legacy-descoteaux07 and tournier07.
+        sh_order_max: Maximum spherical harmonic order to use in the CSD model. Default is 8.
     Returns: Array containing the spherical harmonic coefficients of the obtained FODs.
     """
 
@@ -116,8 +117,9 @@ def compute_csd_fods(
     volume_data = dwi.volume.get_array()
     mask_data = mask.get_array().astype(int)
 
+    bvecs_mod = bvecs.copy()
     if flip_bvecs_x:
-        bvecs[:, 0] = -bvecs[:, 0]
+        bvecs_mod[:, 0] = -bvecs_mod[:, 0]
 
     if not response:
         logging.info("Estimating single-shell single-tissue response function...")
@@ -125,7 +127,7 @@ def compute_csd_fods(
             dwi=dwi, mask=mask, flip_bvecs_x=flip_bvecs_x
         )
 
-    gtab = gradient_table(bvals, bvecs=bvecs)
+    gtab = gradient_table(bvals, bvecs=bvecs_mod)
     csd_model = ConstrainedSphericalDeconvModel(
         gtab, response.get(), sh_order_max=sh_order_max
     )
@@ -155,10 +157,10 @@ def compute_csd_peaks(
         dwi: The Diffusion Weighted Imaging (DWI) dataset.
         mask: A binary brain mask volume. CSD is computed only within this mask.
         response (Optional): The single-fiber response function. If `None`, the response function is estimated using an ROI in the center of the brain mask.
-        flip_bvecs_x (Optional): Whether to flip the x-component of the b-vectors to match MRtrix3 convention.
-        n_peaks (Optional): Number of peaks to extract per voxel. Default is 5.
-        relative_peak_threshold (Optional): Only return peaks greater than relative_peak_threshold * m where m is the largest peak.
-        min_separation_angle (Optional): The minimum distance between directions. If two peaks are too close only the larger of the two is
+        flip_bvecs_x: Whether to flip the x-component of the b-vectors to match MRtrix3 convention.
+        n_peaks: Number of peaks to extract per voxel. Default is 5.
+        relative_peak_threshold: Only return peaks greater than relative_peak_threshold * m where m is the largest peak.
+        min_separation_angle: The minimum distance between directions. If two peaks are too close only the larger of the two is
         returned. Must be in range [0,90]
     Returns: A tuple of VolumeResources containing the CSD peak directions stored as a 5-D array of shape [x,y,z,n_peaks,3],
     and the corresponding peak values stored as a 4D array of shape [x,y,z,n_peaks].
@@ -169,8 +171,9 @@ def compute_csd_peaks(
     volume_data = dwi.volume.get_array()
     mask_data = mask.get_array().astype(int)
 
+    bvecs_mod = bvecs.copy()
     if flip_bvecs_x:
-        bvecs[:, 0] = -bvecs[:, 0]  # flip x axis to match MRtrix3 convention
+        bvecs_mod[:, 0] = -bvecs_mod[:, 0]  # flip x axis to match MRtrix3 convention
 
     if not response:
         logging.info("Estimating single-shell single-tissue response function...")
@@ -178,7 +181,7 @@ def compute_csd_peaks(
             dwi=dwi, mask=mask, flip_bvecs_x=flip_bvecs_x
         )
 
-    gtab = gradient_table(bvals, bvecs=bvecs)
+    gtab = gradient_table(bvals, bvecs=bvecs_mod)
     csd_model = ConstrainedSphericalDeconvModel(gtab, response.get(), sh_order_max=8)
 
     logging.info("Computing peaks...")
@@ -200,7 +203,7 @@ def compute_csd_peaks(
     peak_values = create_estimate_volume_resource(
         array=csd_peaks.peak_values,
         reference_volume=dwi.volume,
-        intent_name="CSD_PEAK_DIRS",
+        intent_name="CSD_PEAK_VALS",
     )
 
     return (peak_dirs, peak_values)

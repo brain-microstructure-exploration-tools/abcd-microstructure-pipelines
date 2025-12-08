@@ -25,7 +25,7 @@ def extract_tractseg(
         dwi: The Diffusion Weighted Imaging (DWI) dataset.
         mask: A binary brain mask volume.
         response (Optional): The single-fiber response function. If `None`, the response function is estimated using an ROI in the center of the brain mask.
-        output_type (Optional): TractSeg can segment not only bundles, but also the end regions of bundles.
+        output_type: TractSeg can segment not only bundles, but also the end regions of bundles.
             Moreover it can create Tract Orientation Maps (TOM).
             'tract_segmentation' [DEFAULT]: Segmentation of bundles (72 bundles).
             'endings_segmentation': Segmentation of bundle end regions (72 bundles).
