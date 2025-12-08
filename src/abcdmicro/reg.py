@@ -6,7 +6,7 @@ from pathlib import Path
 
 import ants
 import numpy as np
-from ants.core import ANTsImage
+from ants.core import ANTsImage, ANTsTransform
 
 from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
 from abcdmicro.util import update_volume_metadata
@@ -21,6 +21,7 @@ def average_volumes(
     Args:
         volume_list: A list of VolumeResource objects to be averaged.
                      All volumes are treated with equal weight (1/N).
+
     Returns:
         A VolumeResource object containing the element-wise arithmetic mean of all input volumes.
     """
@@ -56,6 +57,78 @@ def average_volumes(
         ref_volume.get_affine(),
         update_volume_metadata(ref_volume.get_metadata(), average_volume),
     )
+
+
+def _sharpen_template(template: ANTsImage, blending_weight: float = 0.75) -> ANTsImage:
+    """
+    Sharpens the input template using ANTs iMath Sharpen operation.
+    Args:
+        template: The ANTsImage template to be sharpened.
+        blending_weight: The weight for blending the original and sharpened templates. Default is 0.75.
+    Returns:
+        The sharpened ANTsImage template.
+    """
+    sharpened_template = ants.iMath(template, "Sharpen")
+    return template * blending_weight + sharpened_template * (1.0 - blending_weight)
+
+
+def _update_template(
+    template: ANTsImage | dict[str, ANTsImage],
+    avg_warp: ANTsImage,
+    avg_affine_transform: ANTsTransform,
+) -> ANTsImage | dict[str, ANTsImage]:
+    """
+    Updates the current template by applying the average warp and affine transforms.
+    Args:
+        template: The current template (ANTsImage or dict of ANTsImages for multi-metric).
+        avg_warp: The average warp field (ANTsImage).
+        avg_affine_transform: The average affine transform (ANTsTransform).
+    Returns:
+        The updated template (ANTsImage or dict of ANTsImages for multi-metric).
+    """
+    # Save the transformations to file
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Apply average transform to updated template
+        aff_fn = str(Path(tmpdir) / "avgAffine.mat")
+        ants.write_transform(avg_affine_transform, aff_fn)
+
+        if isinstance(template, dict):
+            ref_template = template[next(iter(template.keys()))]
+        else:
+            ref_template = template
+
+        # Compute warp update in template space
+        gradient_step = 0.2
+        wscl = (-1.0) * gradient_step
+        avg_warp = avg_warp * wscl
+        avg_warp_resliced = ants.apply_transforms(
+            fixed=ref_template,
+            moving=avg_warp,
+            imagetype=1,
+            transformlist=aff_fn,
+            whichtoinvert=[1],
+        )
+        wavg_fn = str(Path(tmpdir) / "avgWarp.nii.gz")
+        ants.image_write(avg_warp_resliced, wavg_fn)
+
+        if isinstance(template, dict):
+            for modality, temp in template.items():
+                resampled_template = ants.apply_transforms(
+                    fixed=temp,
+                    moving=temp,
+                    transformlist=[wavg_fn, aff_fn],
+                    whichtoinvert=[0, 1],
+                )
+                template[modality] = resampled_template
+
+            return template
+
+        return ants.apply_transforms(
+            fixed=template,
+            moving=template,
+            transformlist=[wavg_fn, aff_fn],
+            whichtoinvert=[0, 1],
+        )
 
 
 def build_template(
@@ -113,54 +186,23 @@ def build_template(
 
             if idx == 0:
                 avg_warp = ants.image_read(result["fwdtransforms"][0]) * weights[idx]
-                avg_template = result["warpedmovout"] * weights[idx]
+                new_template = result["warpedmovout"] * weights[idx]
             else:
                 avg_warp = (
                     avg_warp
                     + ants.image_read(result["fwdtransforms"][0]) * weights[idx]
                 )
-                avg_template = avg_template + result["warpedmovout"] * weights[idx]
+                new_template = new_template + result["warpedmovout"] * weights[idx]
 
         # Average affine transforms and forward warp fields
         avg_affine_transform = ants.average_affine_transform(affine_list)
 
-        # Save the transformations to file
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Apply average transform to updated template
-            aff_fn = str(Path(tmpdir) / "avgAffine.mat")
-            ants.write_transform(avg_affine_transform, aff_fn)
-
-            # Transform average warp update to template space
-            # This makes the displacement a small update step
-            # which can be applied in the negative direction
-            gradient_step = 0.2
-            wscl = (-1.0) * gradient_step
-            avg_warp = avg_warp * wscl
-            avg_warp_resliced = ants.apply_transforms(
-                fixed=avg_template,
-                moving=avg_warp,
-                imagetype=1,
-                transformlist=aff_fn,
-                whichtoinvert=[1],
-            )
-            wavg_fn = str(Path(tmpdir) / "avgWarp.nii.gz")
-            ants.image_write(avg_warp_resliced, wavg_fn)
-
-            current_template = ants.apply_transforms(
-                fixed=avg_template,
-                moving=avg_template,
-                transformlist=[wavg_fn, aff_fn],
-                whichtoinvert=[0, 1],
-            )
+        current_template = _update_template(
+            new_template, avg_warp, avg_affine_transform
+        )
 
         # Sharpen template
-        blending_weight = 0.75
-        if blending_weight is not None:
-            sharpened_template = ants.iMath(current_template, "Sharpen")
-            current_template = (
-                current_template * blending_weight
-                + sharpened_template * (1.0 - blending_weight)
-            )
+        current_template = _sharpen_template(current_template, blending_weight=0.75)
 
     return InMemoryVolumeResource(
         current_template.numpy(),  # .numpy() also copies the data
@@ -172,7 +214,7 @@ def build_template(
 
 
 # Helper function for multi-metric registration of a single subject
-def _register_subject(
+def _register_subject_multimetric(
     subject_volumes: dict[str, ANTsImage],
     current_template: dict[str, ANTsImage],
     weights: dict[str, float],
@@ -180,6 +222,15 @@ def _register_subject(
     """
     Performs affine and SyN-only registration for a single subject against the
     current template, returning the affine transform, transformation field and the warped images.
+    Args:
+        subject_volumes: A dictionary mapping modality names to ANTsImage objects for the subject.
+        current_template: A dictionary mapping modality names to ANTsImage objects for the current template.
+        weights: A dictionary mapping modality names to their corresponding weights for multivariate registration.
+    Returns:
+        A tuple containing:
+            - The file path to the affine transform (str).
+            - The file path to the warp field (str).
+            - A dictionary mapping modality names to their corresponding warped ANTsImage objects.
     """
 
     modalities = list(subject_volumes.keys())
@@ -316,6 +367,7 @@ def build_multi_metric_template(
     n_subj = len(subject_list)
     for _i in range(iterations):
         affine_list = []
+        new_template = {}
         for idx in range(n_subj):
             # Convert volumes to ANTs images
             ants_image_list = {}
@@ -323,7 +375,7 @@ def build_multi_metric_template(
                 moving_image = volume_list[m][idx]
                 ants_image_list[m] = ants.from_numpy(moving_image.get_array())
 
-            affine_transform, warp_field, warped_images = _register_subject(
+            affine_transform, warp_field, warped_images = _register_subject_multimetric(
                 subject_volumes=ants_image_list,
                 current_template=current_template,
                 weights=weights,
@@ -336,54 +388,27 @@ def build_multi_metric_template(
                 avg_warp = warp_field_ants * (1 / n_subj)
                 # Initialize template average for each modality
                 for m in modalities:
-                    current_template[m] = warped_images[m] * (1 / n_subj)
+                    new_template[m] = warped_images[m] * (1 / n_subj)
             else:
                 avg_warp = avg_warp + warp_field_ants * (1 / n_subj)
                 # Accumulate template average for each modality
                 for m in modalities:
-                    current_template[m] = current_template[m] + warped_images[m] * (
+                    new_template[m] = current_template[m] + warped_images[m] * (
                         1 / n_subj
                     )
 
         # Average affine transforms and forward warp fields
         avg_affine_transform = ants.average_affine_transform(affine_list)
 
-        # Save the transformations to file
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Apply average transform to updated template
-            aff_fn = str(Path(tmpdir) / "avgAffine.mat")
-            ants.write_transform(avg_affine_transform, aff_fn)
-
-            gradient_step = 0.2
-            wscl = (-1.0) * gradient_step
-            avg_warp = avg_warp * wscl
-
-            avg_warp_resliced = ants.apply_transforms(
-                fixed=current_template[primary_mod],
-                moving=avg_warp,
-                imagetype=1,
-                transformlist=aff_fn,
-                whichtoinvert=[1],
-            )
-            wavg_fn = str(Path(tmpdir) / "avgWarp.nii.gz")
-            ants.image_write(avg_warp_resliced, wavg_fn)
-
-            for m in modalities:
-                current_template[m] = ants.apply_transforms(
-                    fixed=current_template[m],
-                    moving=current_template[m],
-                    transformlist=[wavg_fn, aff_fn],
-                    whichtoinvert=[0, 1],
-                )
+        current_template = _update_template(
+            new_template, avg_warp, avg_affine_transform
+        )
 
         # Sharpen template
-        blending_weight = 0.75
-        if blending_weight is not None:
-            for m in modalities:
-                sharpened_template = ants.iMath(current_template[m], "Sharpen")
-                current_template[m] = current_template[
-                    m
-                ] * blending_weight + sharpened_template * (1.0 - blending_weight)
+        for modality, template in current_template.items():
+            current_template[modality] = _sharpen_template(
+                template, blending_weight=0.75
+            )
 
     # Return a dictionary of volume resource templates
     result = {}
