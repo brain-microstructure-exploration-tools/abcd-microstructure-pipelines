@@ -13,7 +13,7 @@ from dipy.reconst.shm import (
     real_sh_descoteaux_from_index,
     sph_harm_ind_list,
 )
-from numpy.typing import NDArray, Tuple
+from numpy.typing import NDArray
 
 
 class Resource(ABC):
@@ -160,7 +160,7 @@ class InMemoryResponseFunctionResource(ResponseFunctionResource):
 
     @staticmethod
     def estimate_from_prolate_tensor(
-        response: Tuple[NDArray, np.floating],
+        response: tuple[NDArray, np.floating],
         gtab: GradientTable,
         sh_order_max: int = 8,
     ) -> InMemoryResponseFunctionResource:
@@ -175,14 +175,10 @@ class InMemoryResponseFunctionResource(ResponseFunctionResource):
         Returns: InMemoryResponseFunctionResource
         """
 
-        if not isinstance(response, tuple) or len(response) != 2:
-            error_msg = "response must be a tuple of (eigen_values, avg_S0)."
-            raise ValueError(error_msg)
-
         evals, s0 = response
 
-        if evals.ndim != 1 and evals.shape[0] != 3:
-            error_msg = "Encountered wrong eigen values array shape {self.evals.shape}. Expected shape (3,)"
+        if not isinstance(evals, np.ndarray) or evals.shape != (3,):
+            error_msg = "the first element of response should be a numpy array listing three eigenvalues)"
             raise ValueError(error_msg)
 
         if gtab is None or not hasattr(gtab, "gradients"):

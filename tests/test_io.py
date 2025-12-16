@@ -12,10 +12,12 @@ from abcdmicro.io import (
     FslBvalResource,
     FslBvecResource,
     NiftiVolumeResource,
+    TextResponseFunctionResource,
 )
 from abcdmicro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
+    InMemoryResponseFunctionResource,
     InMemoryVolumeResource,
 )
 
@@ -64,6 +66,14 @@ def small_nifti_header():
     return hdr
 
 
+@pytest.fixture
+def response_function():
+    rng = np.random.default_rng(1337)
+    sh_coeffs = rng.random(size=(10,))  # random array of coeeficients
+    avg_signal = rng.random(size=(), dtype=np.float32)
+    return [sh_coeffs, avg_signal]
+
+
 @pytest.mark.filterwarnings("ignore:builtin type [sS]wig.* has no __module__ attribute")
 def test_nifti_volume_resource(volume_array, random_affine, tmp_path):
     volume_file = Path(tmp_path) / "volume_file.nii"
@@ -103,3 +113,17 @@ def test_fsl_bvec_resource_save_load(bvec_array, tmp_path):
     bvec_mem = InMemoryBvecResource(bvec_array)
     bvec_mem2 = FslBvecResource.save(bvec_mem, path).load()
     assert np.allclose(bvec_mem.get(), bvec_mem2.get())
+
+
+def test_text_response_function_resource_save_load(response_function, tmp_path):
+    response = InMemoryResponseFunctionResource(
+        sh_coeffs=response_function[0], avg_signal=response_function[1]
+    )
+
+    path = tmp_path / "test_response.txt"
+    res_disk = TextResponseFunctionResource.save(response, path)
+    res_mem2 = res_disk.load()
+
+    assert len(res_mem2.get()) == 2
+    assert np.allclose(res_mem2.get()[0], response.sh_coeffs)
+    assert res_mem2.get()[1] == response.avg_signal
