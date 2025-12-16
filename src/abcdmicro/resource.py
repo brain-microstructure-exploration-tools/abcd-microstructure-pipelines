@@ -190,12 +190,12 @@ class InMemoryResponseFunctionResource(ResponseFunctionResource):
 
         x, y, z = gtab.gradients[_where_dwi].T
         _, theta, phi = cart2sphere(x, y, z)
-        B_dwi = real_sh_descoteaux_from_index(
+        b_dwi = real_sh_descoteaux_from_index(
             m_values, l_values, theta[:, None], phi[:, None]
         )
 
-        S_r = estimate_response(gtab, evals, s0)
-        sh_coeffs = np.linalg.lstsq(B_dwi, S_r[_where_dwi], rcond=-1)[0]
+        s_r = estimate_response(gtab, evals, s0)
+        sh_coeffs = np.linalg.lstsq(b_dwi, s_r[_where_dwi], rcond=-1)[0]
 
         return InMemoryResponseFunctionResource(sh_coeffs=sh_coeffs, avg_signal=s0)
 
