@@ -27,19 +27,11 @@ def average_volumes(
         A VolumeResource object containing the element-wise arithmetic mean of all input volumes.
     """
 
-    biggest = 0
-    biggestind = 0
-    for k, _v in enumerate(volume_list):
-        sz = np.prod(_v.get_array().shape)
-        if sz > biggest:
-            biggest = sz
-            biggestind = k
-
-    ref_volume = volume_list[biggestind]
-    average_volume = ref_volume.get_array() * 0
+    ref_volume = volume_list[np.argmax([v.get_array().size for v in volume_list])]
+    average_volume = np.zeros_like(ref_volume.get_array())
     ants_avg = ants.from_numpy(average_volume)
 
-    for _i, vol in enumerate(volume_list):
+    for vol in volume_list:
         img = vol.get_array()
         if normalize:
             img /= np.mean(img)
@@ -51,7 +43,7 @@ def average_volumes(
         )
         average_volume += temp.numpy()
 
-    average_volume /= float(1.0 / len(volume_list))
+    average_volume /= float(len(volume_list))
 
     return InMemoryVolumeResource(
         average_volume,
@@ -283,7 +275,6 @@ def _register_subject_multimetric(
         warped_images[modality_k] = ants.apply_transforms(
             fixed=current_template[modality_k],
             moving=subject_volumes[modality_k],
-            imagetype=1,
             transformlist=[warp_field, affine_transform],
             whichtoinvert=[0, 0],
         )
@@ -350,14 +341,14 @@ def build_multi_metric_template(
             )
             raise ValueError(error_msg)
 
-    # Convert to a list of volumes for each metric type
-    volume_list = _reformat_subject_list(subject_list)
+    # Convert to a dictionary that contains a list of volumes for each metric type
+    volumes_dict = _reformat_subject_list(subject_list)
 
     # Initialize the template - dictionary of volume resources
     if initial_template is None:
         initial_template = {}
         for m in modalities:
-            initial_template[m] = average_volumes(volume_list[m])
+            initial_template[m] = average_volumes(volumes_dict[m])
 
     current_template = {}
     for m in modalities:
@@ -371,13 +362,13 @@ def build_multi_metric_template(
 
     n_subj = len(subject_list)
     for _i in range(iterations):
-        affine_list = []
-        new_template = {}
+        affine_list: list[str] = []  # list of paths
+        new_template: dict[str, ANTsImage] = {}
         for idx in range(n_subj):
             # Convert volumes to ANTs images
-            ants_image_list = {}
+            ants_image_list: dict[str, ANTsImage] = {}
             for m in modalities:
-                moving_image = volume_list[m][idx]
+                moving_image = volumes_dict[m][idx]
                 ants_image_list[m] = ants.from_numpy(moving_image.get_array())
 
             affine_transform, warp_field, warped_images = _register_subject_multimetric(
@@ -398,9 +389,7 @@ def build_multi_metric_template(
                 avg_warp = avg_warp + warp_field_ants * (1 / n_subj)
                 # Accumulate template average for each modality
                 for m in modalities:
-                    new_template[m] = current_template[m] + warped_images[m] * (
-                        1 / n_subj
-                    )
+                    new_template[m] = new_template[m] + warped_images[m] * (1 / n_subj)
 
         # Average affine transforms and forward warp fields
         avg_affine_transform = ants.average_affine_transform(affine_list)
