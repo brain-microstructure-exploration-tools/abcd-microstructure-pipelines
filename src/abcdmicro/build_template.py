@@ -17,14 +17,17 @@ def average_volumes(
     volume_list: Sequence[VolumeResource], normalize: bool = True
 ) -> VolumeResource:
     """
-    Calculates the simple arithmetic average (mean) of a list of volumes.
-    This is a simplified version of ANTs `average_images`.
+    Calculates the simple arithmetic average (mean) of a list of 3D scalar volumes.
+
+    Input volumes are automatically resampled to the largest image space in the list.
+    However, no registration is performed so all volumes should be in the same physical coordinate space to begin with.
+    This is a simplified version of ANTs `average_images`. All volumes are treated with equal weight (1/N).
     Args:
-        volume_list: A list of VolumeResource objects to be averaged.
-                     All volumes are treated with equal weight (1/N).
+        volume_list: A list of 3D scalar VolumeResource objects. Volumes do not need
+                 to share the same shape/resolution but must be physically aligned.
 
     Returns:
-        A VolumeResource object containing the element-wise arithmetic mean of all input volumes.
+        A VolumeResource object containing the element-wise arithmetic mean of all input volumes in the largest image space.
     """
 
     ref_volume = volume_list[np.argmax([v.get_array().size for v in volume_list])]
@@ -73,11 +76,11 @@ def _update_template(
     """
     Updates the current template by applying the average warp and affine transforms.
     Args:
-        template: The current template (ANTsImage or dict of ANTsImages for multi-metric).
+        template: The current template (ANTsImage or dict of ANTsImages for multi-modality).
         avg_warp: The average warp field (ANTsImage).
         avg_affine_transform: The average affine transform (ANTsTransform).
     Returns:
-        The updated template (ANTsImage or dict of ANTsImages for multi-metric).
+        The updated template (ANTsImage or dict of ANTsImages for multi-modality).
     """
     # Save the transformations to file
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -130,7 +133,7 @@ def build_template(
     iterations: int = 3,
 ) -> VolumeResource:
     """
-    Constructs an unbiased mean shape template from a list of input volumes using
+    Constructs an unbiased mean shape template from a list of 3D scalar volumes using
     an iterative group-wise registration approach based on ANTs.
 
     The process follows the standard iterative unbiased approach:
@@ -143,7 +146,7 @@ def build_template(
     NOTE: The current implementation assumes input images are roughly pre-aligned.
 
     Args:
-        volume_list: A list of input 3D image volumes (VolumeResource objects).
+        volume_list: A list of input 3D scalar volumes (VolumeResource objects).
         initial_template: An optional starting template volume. If None, the
                             initial template is the simple average of all input volumes.
         iterations: The number of iterations for the template refinement process.
@@ -207,7 +210,7 @@ def build_template(
 
 
 # Helper function for multi-metric registration of a single subject
-def _register_subject_multimetric(
+def _register_subject_multimodality(
     subject_volumes: dict[str, ANTsImage],
     current_template: dict[str, ANTsImage],
     weights: dict[str, float],
@@ -317,14 +320,14 @@ def build_multi_metric_template(
 
     Args:
         subject_list: A list of input data, where each subject is a dictionary mapping modality names (string) to their corresponding
-        3D image volumes (VolumeResource objects).
+        3D scalar volumes (VolumeResource objects).
         initial_template: An optional starting template volume. If None, the
             initial template is the simple average of all input volumes.
         weights: The weight given to each volume type during the multivariate registration step. If None, equal weights are assumed.
             The length must match the number of volumes specified per subject.
         iterations: The number of iterations for the template refinement process.
     Returns:
-        A VolumeResource object representing the final group-wise mean template (per metric)
+        A VolumeResource object representing the final group-wise mean template (per modality)
     """
 
     # Get the list of modalities from the first subject
@@ -341,7 +344,7 @@ def build_multi_metric_template(
             )
             raise ValueError(error_msg)
 
-    # Convert to a dictionary that contains a list of volumes for each metric type
+    # Convert to a dictionary that contains a list of volumes for each modality type
     volumes_dict = _reformat_subject_list(subject_list)
 
     # Initialize the template - dictionary of volume resources
@@ -354,7 +357,7 @@ def build_multi_metric_template(
     for m in modalities:
         current_template[m] = ants.from_numpy(initial_template[m].get_array())
 
-    # weights for multivariate extras are relative to the primary metric
+    # weights for multivariate extras are relative to the primary modality
     if weights is None:
         weights = dict.fromkeys(modalities, 1.0)  # Equal weighting
 
@@ -371,10 +374,12 @@ def build_multi_metric_template(
                 moving_image = volumes_dict[m][idx]
                 ants_image_list[m] = ants.from_numpy(moving_image.get_array())
 
-            affine_transform, warp_field, warped_images = _register_subject_multimetric(
-                subject_volumes=ants_image_list,
-                current_template=current_template,
-                weights=weights,
+            affine_transform, warp_field, warped_images = (
+                _register_subject_multimodality(
+                    subject_volumes=ants_image_list,
+                    current_template=current_template,
+                    weights=weights,
+                )
             )
 
             # Accumulate affine transforms, warped images and warp fields for averaging
