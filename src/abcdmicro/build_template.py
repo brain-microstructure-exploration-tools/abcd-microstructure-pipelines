@@ -30,7 +30,18 @@ def average_volumes(
         A VolumeResource object containing the element-wise arithmetic mean of all input volumes in the largest image space.
     """
 
-    ref_volume = volume_list[np.argmax([v.get_array().size for v in volume_list])]
+    for v in volume_list:
+        max_size = -1
+        data = v.get_array()
+        if data.ndim > 3:
+            error_message = (
+                f"Input volume dimensions must be 2D or 3D. Found {data.ndim}D instead."
+            )
+            raise ValueError(error_message)
+        if data.size > max_size:
+            max_size = data.size
+            ref_volume = v
+
     average_volume = np.zeros_like(ref_volume.get_array())
     ants_avg = ants.from_numpy(average_volume)
 
@@ -95,8 +106,7 @@ def _update_template(
 
         # Compute warp update in template space
         gradient_step = 0.2
-        wscl = (-1.0) * gradient_step
-        avg_warp = avg_warp * wscl
+        avg_warp = avg_warp * (-gradient_step)
         avg_warp_resliced = ants.apply_transforms(
             fixed=ref_template,
             moving=avg_warp,
@@ -108,16 +118,16 @@ def _update_template(
         ants.image_write(avg_warp_resliced, wavg_fn)
 
         if isinstance(template, dict):
+            updated_template = {}
             for modality, temp in template.items():
-                resampled_template = ants.apply_transforms(
+                updated_template[modality] = ants.apply_transforms(
                     fixed=temp,
                     moving=temp,
                     transformlist=[wavg_fn, aff_fn],
                     whichtoinvert=[0, 1],
                 )
-                template[modality] = resampled_template
 
-            return template
+            return updated_template
 
         return ants.apply_transforms(
             fixed=template,
