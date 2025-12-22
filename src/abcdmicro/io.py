@@ -140,13 +140,13 @@ class FslBvecResource(BvecResource):
 
 
 @dataclass
-class TextResponseFunctionResource(ResponseFunctionResource):
-    """A response function that is saved to disk in a text file."""
+class JsonResponseFunctionResource(ResponseFunctionResource):
+    """A response function that is saved to disk in a json file."""
 
     is_loaded: ClassVar[bool] = False
 
     path_in: InitVar[PathLike]
-    """Path to the underlying text file"""
+    """Path to the underlying json file"""
 
     path: Path = field(init=False)
 
@@ -173,17 +173,17 @@ class TextResponseFunctionResource(ResponseFunctionResource):
     @staticmethod
     def save(
         response: ResponseFunctionResource, path: PathLike
-    ) -> TextResponseFunctionResource:
-        """Save response function data to a path, creating a TextResponseFunctionResource."""
+    ) -> JsonResponseFunctionResource:
+        """Save response function data to a path, creating a JsonResponseFunctionResource."""
         path = normalize_path(path)
         with path.open("w", encoding="utf-8") as file:
             json.dump(
                 [
-                    [eval.item() for eval in response.get()[0]],
+                    [coeff.item() for coeff in response.get()[0]],
                     response.get()[
                         1
                     ].item(),  # json won't serialize numpy float type, it has to be native python float, hence ".item()"
                 ],
                 file,
             )
-        return TextResponseFunctionResource(path)
+        return JsonResponseFunctionResource(path)

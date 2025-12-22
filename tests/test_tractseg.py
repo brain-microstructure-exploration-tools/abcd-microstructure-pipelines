@@ -50,8 +50,13 @@ def response_function() -> InMemoryResponseFunctionResource:
     return InMemoryResponseFunctionResource(sh_coeffs=sh_coeffs, avg_signal=avg_signal)
 
 
-@pytest.mark.parametrize("response", [None, response_function])
-def test_tractseg(mocker, dwi_data_small_random, response):
+@pytest.mark.parametrize("response_is_none", [True, False])
+def test_tractseg(
+    mocker,
+    dwi_data_small_random,
+    response_function,
+    response_is_none,
+):
     # Create mock csd peaks data
     rng = np.random.default_rng(17)
     vol = dwi_data_small_random.volume
@@ -74,6 +79,8 @@ def test_tractseg(mocker, dwi_data_small_random, response):
     mocker_run_tract_seg = mocker.patch(
         "abcdmicro.tractseg.run_tractseg", return_value=mock_tractseg_output
     )
+
+    response = None if response_is_none else response_function
 
     mock_mask = mocker.Mock()
     seg_volume = extract_tractseg(

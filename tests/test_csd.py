@@ -104,7 +104,7 @@ def test_csd_peaks(
     mock_res_mask = mock_response_from_mask(mocker)
     mock_compute_mask = mock_mask_for_response(mocker, dwi_data_small_random)
     mock_estimate_response = mocker.patch(
-        "abcdmicro.csd.InMemoryResponseFunctionResource.estimate_from_prolate_tensor",
+        "abcdmicro.csd.InMemoryResponseFunctionResource.from_prolate_tensor",
         return_value=response_function,
     )
 
@@ -183,7 +183,7 @@ def test_compute_csd_fods(
     mock_res_mask = mock_response_from_mask(mocker)
     mock_compute_mask = mock_mask_for_response(mocker, dwi_data_small_random)
     mock_estimate_response = mocker.patch(
-        "abcdmicro.csd.InMemoryResponseFunctionResource.estimate_from_prolate_tensor",
+        "abcdmicro.csd.InMemoryResponseFunctionResource.from_prolate_tensor",
         return_value=response_function,
     )
 

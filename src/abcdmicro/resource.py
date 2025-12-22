@@ -132,7 +132,13 @@ class ResponseFunctionResource(Resource):
 
     @abstractmethod
     def get(self) -> tuple[NDArray, np.floating]:
-        """Get the underlying response function"""
+        """Returns the underlying response function components as (sh_coeffs, avg_signal)
+        Returns:
+            sh_coeffs: An array of m=0 coefficients for even degrees l = [0, 2, ..., sh_order].
+            The array length is ((sh_order / 2) + 1,), where sh_order is the maximal spherical harmonics order.
+
+            avg_signal: The mean signal intensity across the sphere, equivalent to the m=0, l=0 component.
+        """
 
     @abstractmethod
     def get_dipy_object(self) -> AxSymShResponse:
@@ -149,17 +155,34 @@ class InMemoryResponseFunctionResource(ResponseFunctionResource):
     is_loaded: ClassVar[bool] = True
 
     sh_coeffs: NDArray[np.floating]
-    """Response function signal as coefficients to an axially symmetric, even spherical harmonic model."""
+    """
+    Spherical harmonic coefficients of the response function for an axially symmetric,
+    even-degree model. Following the Dipy convention for symmetric signals, only even degrees (l = 0, 2, 4, ...,
+    sh_order) are included. Under the assumption of axial symmetry, only the m = 0 coefficients are included.
+    The coefficients are ordered by increasing degree l:
+        Index 0: l=0, m=0 (proportional to the average signal or avg_signal)
+        Index 1: l=2, m=0
+        Index 2: l=4, m=0
+        ...
+        Index M-1: l=sh_order, m=0
+    The total number of coefficients M is (sh_order / 2) + 1.
+    """
 
     avg_signal: np.floating
     """ The average non-diffusion weighted signal within the voxels used to calculate the response function"""
 
     def get(self) -> tuple[NDArray, np.floating]:
-        """Returns the underlying response function as (sh_coeffs, avg_signal)"""
+        """Returns the underlying response function components as (sh_coeffs, avg_signal)
+        Returns:
+            sh_coeffs: An array of m=0 coefficients for even degrees l = [0, 2, ..., sh_order].
+            The array length is ((sh_order / 2) + 1,), where sh_order is the maximal spherical harmonics order.
+
+            avg_signal: The mean signal intensity across the sphere, equivalent to the m=0, l=0 component.
+        """
         return (self.sh_coeffs, self.avg_signal)
 
     @staticmethod
-    def estimate_from_prolate_tensor(
+    def from_prolate_tensor(
         response: tuple[NDArray, np.floating],
         gtab: GradientTable,
         sh_order_max: int = 8,
@@ -175,10 +198,10 @@ class InMemoryResponseFunctionResource(ResponseFunctionResource):
         Returns: InMemoryResponseFunctionResource
         """
 
-        evals, s0 = response
+        eig_vals, s0 = response
 
-        if not isinstance(evals, np.ndarray) or evals.shape != (3,):
-            error_msg = "the first element of response should be a numpy array listing three eigenvalues)"
+        if not isinstance(eig_vals, np.ndarray) or eig_vals.shape != (3,):
+            error_msg = "the first element of response should be a numpy array (listing three eigenvalues)"
             raise ValueError(error_msg)
 
         if gtab is None or not hasattr(gtab, "gradients"):
@@ -194,7 +217,7 @@ class InMemoryResponseFunctionResource(ResponseFunctionResource):
             m_values, l_values, theta[:, None], phi[:, None]
         )
 
-        s_r = estimate_response(gtab, evals, s0)
+        s_r = estimate_response(gtab, eig_vals, s0)
         sh_coeffs = np.linalg.lstsq(b_dwi, s_r[_where_dwi], rcond=-1)[0]
 
         return InMemoryResponseFunctionResource(sh_coeffs=sh_coeffs, avg_signal=s0)

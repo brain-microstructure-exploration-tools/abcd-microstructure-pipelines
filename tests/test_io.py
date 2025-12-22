@@ -11,8 +11,8 @@ from scipy.linalg import expm
 from abcdmicro.io import (
     FslBvalResource,
     FslBvecResource,
+    JsonResponseFunctionResource,
     NiftiVolumeResource,
-    TextResponseFunctionResource,
 )
 from abcdmicro.resource import (
     InMemoryBvalResource,
@@ -120,8 +120,8 @@ def test_text_response_function_resource_save_load(response_function, tmp_path):
         sh_coeffs=response_function[0], avg_signal=response_function[1]
     )
 
-    path = tmp_path / "test_response.txt"
-    res_disk = TextResponseFunctionResource.save(response, path)
+    path = tmp_path / "test_response.json"
+    res_disk = JsonResponseFunctionResource.save(response, path)
     res_mem2 = res_disk.load()
 
     assert len(res_mem2.get()) == 2

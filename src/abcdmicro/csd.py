@@ -90,7 +90,7 @@ def estimate_response_function(
             "Ratio of response diffusion tensor eigenvalues is greater than 0.3. For a response function we expect more prolateness. Something may be wrong."
         )
 
-    return InMemoryResponseFunctionResource.estimate_from_prolate_tensor(
+    return InMemoryResponseFunctionResource.from_prolate_tensor(
         response, gtab=gtab_low_b, sh_order_max=sh_order_max
     )
 

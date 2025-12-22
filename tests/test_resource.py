@@ -163,7 +163,7 @@ def test_response_inmemory_get(prolate_response_function):
 def test_dipy_conversion(
     prolate_response_function, dipy_gradient_table, dipy_response_object
 ):
-    res = InMemoryResponseFunctionResource.estimate_from_prolate_tensor(
+    res = InMemoryResponseFunctionResource.from_prolate_tensor(
         response=prolate_response_function, gtab=dipy_gradient_table
     )
     res_dipy = res.get_dipy_object()
