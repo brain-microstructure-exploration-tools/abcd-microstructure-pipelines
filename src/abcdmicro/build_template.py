@@ -30,6 +30,7 @@ def average_volumes(
         A VolumeResource object containing the element-wise arithmetic mean of all input volumes in the largest image space.
     """
 
+    ref_volume = volume_list[0]
     for v in volume_list:
         max_size = -1
         data = v.get_array()

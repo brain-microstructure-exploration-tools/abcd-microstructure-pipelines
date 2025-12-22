@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import ants
 import numpy as np
 import pytest
+from ants.core import ANTsImage
 
 from abcdmicro.build_template import (
     _update_template,
@@ -17,6 +19,7 @@ from abcdmicro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryVolumeResource,
+    VolumeResource,
 )
 
 
@@ -79,7 +82,7 @@ def test_update_template():
     warp_data[..., 0] = -5.0
     avg_warp = ants.from_numpy(warp_data, has_components=True)
 
-    updated_template = _update_template(
+    updated_template: ANTsImage = _update_template(
         template=template_img, avg_warp=avg_warp, avg_affine_transform=aff
     )
 
@@ -135,6 +138,7 @@ def test_build_template(
         return_value=ants.from_numpy(average_volume.get_array()),
     )
 
+    expected_initial_template: VolumeResource
     n_iter = 2
     if provide_initial_template:
         initial_template = scalar_volume1
@@ -246,7 +250,7 @@ def test_invalid_inputs(dwi1: Dwi, dwi2: Dwi):
     b01 = dwi1.compute_mean_b0()
 
     # Provide non scalar dwi volume as input
-    subject_list = [
+    subject_list: list[Mapping[str, VolumeResource]] = [
         {"dummy_mod1": b01, "dummy_mod2": b01},
         {"dummy_mod1": dwi2.volume, "dummy_mod2": dwi2.volume},  # Not a 3D volume
     ]
