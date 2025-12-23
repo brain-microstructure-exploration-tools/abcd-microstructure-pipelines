@@ -30,6 +30,7 @@ def estimate_response_function(
     mask: VolumeResource,
     flip_bvecs_x: bool = True,
     fa_thr: float = 0.8,
+    sh_order_max: int = 8,
 ) -> InMemoryResponseFunctionResource:
     """Estimate the single-shell single-tissue response function from a DWI dataset using the SSST method.
     Args:
@@ -37,6 +38,7 @@ def estimate_response_function(
         mask: A binary brain mask volume. This is used to extract an ROI at the center of the brain.
         flip_bvecs_x: Whether to flip the x-component of the b-vectors to match MRtrix3 convention.
         fa_thr: FA threshold for calculating the response function.
+        sh_order_max: Maximum spherical harmonic order to use for the basis model. Default is 8.
     Returns: A resource containing the estimated single-tissue response function.
     """
 
@@ -88,7 +90,9 @@ def estimate_response_function(
             "Ratio of response diffusion tensor eigenvalues is greater than 0.3. For a response function we expect more prolateness. Something may be wrong."
         )
 
-    return InMemoryResponseFunctionResource(evals=response[0], avg_signal=response[1])
+    return InMemoryResponseFunctionResource.from_prolate_tensor(
+        response, gtab=gtab_low_b, sh_order_max=sh_order_max
+    )
 
 
 def compute_csd_fods(
@@ -129,7 +133,7 @@ def compute_csd_fods(
 
     gtab = gradient_table(bvals, bvecs=bvecs_mod)
     csd_model = ConstrainedSphericalDeconvModel(
-        gtab, response.get(), sh_order_max=sh_order_max
+        gtab, response.get_dipy_object(), sh_order_max=sh_order_max
     )
     csd_fit = csd_model.fit(volume_data, mask=mask_data)
 
@@ -182,7 +186,9 @@ def compute_csd_peaks(
         )
 
     gtab = gradient_table(bvals, bvecs=bvecs_mod)
-    csd_model = ConstrainedSphericalDeconvModel(gtab, response.get(), sh_order_max=8)
+    csd_model = ConstrainedSphericalDeconvModel(
+        gtab, response.get_dipy_object(), sh_order_max=8
+    )
 
     logging.info("Computing peaks...")
     csd_peaks = peaks_from_model(

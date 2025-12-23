@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 from dataclasses import InitVar, dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import nibabel as nib
 import numpy as np
@@ -16,10 +17,15 @@ from abcdmicro.resource import (
     BvecResource,
     InMemoryBvalResource,
     InMemoryBvecResource,
+    InMemoryResponseFunctionResource,
     InMemoryVolumeResource,
+    ResponseFunctionResource,
     VolumeResource,
 )
 from abcdmicro.util import PathLike, normalize_path
+
+if TYPE_CHECKING:
+    from dipy.reconst.csdeconv import AxSymShResponse
 
 
 @dataclass
@@ -131,3 +137,53 @@ class FslBvecResource(BvecResource):
             delimiter=" ",
         )
         return FslBvecResource(path)
+
+
+@dataclass
+class JsonResponseFunctionResource(ResponseFunctionResource):
+    """A response function that is saved to disk in a json file."""
+
+    is_loaded: ClassVar[bool] = False
+
+    path_in: InitVar[PathLike]
+    """Path to the underlying json file"""
+
+    path: Path = field(init=False)
+
+    def __post_init__(self, path_in: PathLike) -> None:
+        self.path = normalize_path(path_in)
+
+    def get(self) -> tuple[NDArray, np.floating]:
+        """Get the underlying response function"""
+        return self.load().get()
+
+    def get_dipy_object(self) -> AxSymShResponse:
+        """Get the underlying response function in a format compatible with Dipy"""
+        return self.load().get_dipy_object()
+
+    def load(self) -> InMemoryResponseFunctionResource:
+        """Load volume into memory"""
+        with self.path.open("r", encoding="utf-8") as file:
+            response_list = json.load(file)
+            return InMemoryResponseFunctionResource(
+                sh_coeffs=np.array(response_list[0], dtype=float),
+                avg_signal=np.float32(response_list[1]),
+            )
+
+    @staticmethod
+    def save(
+        response: ResponseFunctionResource, path: PathLike
+    ) -> JsonResponseFunctionResource:
+        """Save response function data to a path, creating a JsonResponseFunctionResource."""
+        path = normalize_path(path)
+        with path.open("w", encoding="utf-8") as file:
+            json.dump(
+                [
+                    [coeff.item() for coeff in response.get()[0]],
+                    response.get()[
+                        1
+                    ].item(),  # json won't serialize numpy float type, it has to be native python float, hence ".item()"
+                ],
+                file,
+            )
+        return JsonResponseFunctionResource(path)
