@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tempfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
@@ -15,7 +15,7 @@ from abcdmicro.util import update_volume_metadata
 
 def average_volumes(
     volume_list: Sequence[VolumeResource], normalize: bool = True
-) -> VolumeResource:
+) -> InMemoryVolumeResource:
     """
     Calculates the simple arithmetic average (mean) of a list of 3D scalar volumes.
 
@@ -142,7 +142,7 @@ def build_template(
     volume_list: Sequence[VolumeResource],
     initial_template: VolumeResource | None = None,
     iterations: int = 3,
-) -> VolumeResource:
+) -> InMemoryVolumeResource:
     """
     Constructs an unbiased mean shape template from a list of 3D scalar volumes using
     an iterative group-wise registration approach based on ANTs.
@@ -154,12 +154,12 @@ def build_template(
     4. Apply the inverse of the mean shift to the template to correct bias toward the true mean.
     5. Sharpen the template to enhance edge definition.
 
-    NOTE: The current implementation assumes input images are roughly pre-aligned.
-
     Args:
         volume_list: A list of input 3D scalar volumes (VolumeResource objects).
+                    If an initial template is not provided, the input volumes should all be rigidly aligned to
+                    create a plausible initial average image.
         initial_template: An optional starting template volume. If None, the
-                            initial template is the simple average of all input volumes.
+                initial template is the simple average of all input volumes.
         iterations: The number of iterations for the template refinement process.
     Returns:
         A VolumeResource object representing the final group-wise mean template.
@@ -306,8 +306,14 @@ def _reformat_subject_list(
     Returns:
         A dictionary mapping modality names to lists of VolumeResource objects.
     """
+
+    modalities = list(subject_list[0].keys())
     reformatted = defaultdict(list)
     for subject_dict in subject_list:
+        # Check that all subjects have the same set of keys
+        if Counter(list(subject_dict.keys())) != Counter(modalities):
+            error_msg = "Inconsistent keys detected across subjects in subject_list"
+            raise ValueError(error_msg)
         for modality, volume in subject_dict.items():
             if volume.get_array().ndim > 3:  # Check that the input volume is 3D
                 error_message = f"Input volume dimensions must be 2D or 3D. Found {volume.get_array().ndim}D instead."
@@ -318,10 +324,10 @@ def _reformat_subject_list(
 
 def build_multi_metric_template(
     subject_list: Sequence[Mapping[str, VolumeResource]],
-    initial_template: dict[str, VolumeResource] | None = None,
-    weights: dict[str, np.floating] | None = None,
+    initial_template: Mapping[str, VolumeResource] | None = None,
+    weights: Mapping[str, np.floating] | None = None,
     iterations: int = 3,
-) -> dict[str, InMemoryVolumeResource]:
+) -> Mapping[str, InMemoryVolumeResource]:
     """
     Constructs an unbiased mean shape template from a list of input volumes using
     an iterative group-wise registration approach based on ANTs, utilizing
@@ -330,12 +336,14 @@ def build_multi_metric_template(
     NOTE: The current implementation assumes input images are roughly pre-aligned.
 
     Args:
-        subject_list: A list of input data, where each subject is a dictionary mapping modality names (string) to their corresponding
-        3D scalar volumes (VolumeResource objects).
+        subject_list: A list of dictionaries where each subject maps modality names to their corresponding 3D scalar volumes (VolumeResource objects).
+                It is assumed that all volumes for a given subject are already co-registered.
         initial_template: An optional starting template volume. If None, the
-            initial template is the simple average of all input volumes.
-        weights: The weight given to each volume type during the multivariate registration step. If None, equal weights are assumed.
-            The length must match the number of volumes specified per subject.
+                initial template is the simple average of all input volumes.
+        weights: The weight given to each volume type (modality) during the multivariate registration step.
+                The first entry is treated as the reference modality; all subsequent weights are normalized relative to
+                this first value before being passed to ANTs. If None, equal weights are assumed.
+                The dictionary length must match the number of modalities provided in subject_list.
         iterations: The number of iterations for the template refinement process.
     Returns:
         A VolumeResource object representing the final group-wise mean template (per modality)
@@ -364,7 +372,7 @@ def build_multi_metric_template(
         for m in modalities:
             initial_template[m] = average_volumes(volumes_dict[m])
 
-    current_template = {}
+    current_template: dict[str, ANTsImage] = {}
     for m in modalities:
         current_template[m] = ants.from_numpy(initial_template[m].get_array())
 
@@ -375,7 +383,7 @@ def build_multi_metric_template(
     weights = {m: weights[m] / weights[primary_mod] for m in modalities}
 
     n_subj = len(subject_list)
-    for _i in range(iterations):
+    for _ in range(iterations):
         affine_list: list[str] = []  # list of paths
         new_template: dict[str, ANTsImage] = {}
         for idx in range(n_subj):

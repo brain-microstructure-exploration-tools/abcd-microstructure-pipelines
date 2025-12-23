@@ -138,7 +138,6 @@ def test_build_template(
         return_value=ants.from_numpy(average_volume.get_array()),
     )
 
-    expected_initial_template: VolumeResource
     n_iter = 2
     if provide_initial_template:
         initial_template = scalar_volume1
@@ -247,18 +246,29 @@ def test_build_multi_metric_template(
 
 
 def test_invalid_inputs(dwi1: Dwi, dwi2: Dwi):
-    b01 = dwi1.compute_mean_b0()
+    scalar_volume = dwi1.compute_mean_b0()
 
     # Provide non scalar dwi volume as input
     subject_list: list[Mapping[str, VolumeResource]] = [
-        {"dummy_mod1": b01, "dummy_mod2": b01},
+        {"dummy_mod1": scalar_volume, "dummy_mod2": scalar_volume},
         {"dummy_mod1": dwi2.volume, "dummy_mod2": dwi2.volume},  # Not a 3D volume
     ]
 
-    volume_list = [b01, dwi2.volume]
+    volume_list = [scalar_volume, dwi2.volume]
 
     with pytest.raises(ValueError, match="Input volume dimensions must be 2D or 3D"):
         build_template(volume_list=volume_list, iterations=1)
 
     with pytest.raises(ValueError, match="Input volume dimensions must be 2D or 3D"):
         build_multi_metric_template(subject_list=subject_list, iterations=1)
+
+    # Provide non scalar dwi volume as input
+    subject_list_error: list[Mapping[str, VolumeResource]] = [
+        {"dummy_mod1": scalar_volume, "dummy_mod2": scalar_volume},
+        {"dummy_mod1": scalar_volume, "dummy_mod3": scalar_volume},  # Not a 3D volume
+    ]
+
+    with pytest.raises(
+        ValueError, match="Inconsistent keys detected across subjects in subject_list"
+    ):
+        build_multi_metric_template(subject_list=subject_list_error, iterations=1)
