@@ -31,7 +31,7 @@ classifiers = [
 dynamic = ["version"]
 dependencies = [
   "click >=8.1",
-  "numpy",
+  "numpy <2.4",
   "dipy >=1.9",
   "pandas",
   "hd-bet == 2.0.1",
