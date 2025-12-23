@@ -157,7 +157,8 @@ def build_template(
     Args:
         volume_list: A list of input 3D scalar volumes (VolumeResource objects).
                     If an initial template is not provided, the input volumes should all be rigidly aligned to
-                    create a plausible initial average image.
+                    create a plausible initial average image. This function assumes that all of the volumes share
+                    the same affine matrix.
         initial_template: An optional starting template volume. If None, the
                 initial template is the simple average of all input volumes.
         iterations: The number of iterations for the template refinement process.
@@ -337,7 +338,8 @@ def build_multi_metric_template(
 
     Args:
         subject_list: A list of dictionaries where each subject maps modality names to their corresponding 3D scalar volumes (VolumeResource objects).
-                It is assumed that all volumes for a given subject are already co-registered.
+                It is assumed that all volumes for a given subject are already co-registered. It is also assumed that all of the volumes across subjects
+                share the same affine matrix.
         initial_template: An optional starting template volume. If None, the
                 initial template is the simple average of all input volumes.
         weights: The weight given to each volume type (modality) during the multivariate registration step.
