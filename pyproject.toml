@@ -40,6 +40,7 @@ dependencies = [
   # imports backports.tarfile (can be removed if amico drops it)
   "backports.tarfile",
   "TractSeg",
+  "antspyx",
 ]
 
 [project.optional-dependencies]
