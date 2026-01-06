@@ -9,6 +9,7 @@ from dipy.direction.peaks import PeaksAndMetrics
 
 from abcdmicro.csd import (
     combine_csd_peaks_to_vector_volume,
+    combine_response_functions,
     compute_csd_fods,
     compute_csd_peaks,
 )
@@ -274,3 +275,66 @@ def test_combine_csd_peaks_to_vector(dwi_data_small_random):
     combined_vectors = combined_array.reshape(*vol_shape, n_peaks, 3)
     combined_vector_norms = np.linalg.norm(combined_vectors, axis=-1)
     assert np.allclose(combined_vector_norms, peak_value_data)
+
+
+def test_combine_response_functions_averaging():
+    rng = np.random.default_rng(1337)
+
+    # Example response functions
+    l0_a = 200
+    res_a = InMemoryResponseFunctionResource(
+        sh_coeffs=np.concatenate(([l0_a], rng.random(44) * 100)), avg_signal=1000.0
+    )
+    l0_b = 200
+    res_b = InMemoryResponseFunctionResource(
+        sh_coeffs=np.concatenate(([l0_b], rng.random(44) * 100)), avg_signal=800.0
+    )
+
+    # Test combining
+    result = combine_response_functions([res_a, res_b])
+    expected_s0 = (1000.0 + 800.0) / 2.0
+    # Since L=0 were already the same, the multipliers should be 1.0.
+    # The coeffs should be a simple mean of the two responses.
+    expected_coeffs = (res_a.sh_coeffs + res_b.sh_coeffs) / 2.0
+
+    assert result.sh_coeffs.shape == (45,)
+    assert result.avg_signal == expected_s0
+    assert np.allclose(result.sh_coeffs, expected_coeffs)
+
+    # Confirm that averaging identical responses returns the same response
+    result = combine_response_functions([res_a, res_a])
+    assert result.avg_signal == res_a.avg_signal
+    assert np.allclose(result.sh_coeffs, res_a.sh_coeffs)
+
+
+def test_combine_response_functions_mismatched_signals():
+    rng = np.random.default_rng(1337)
+
+    # Example response functions
+    l0_a = 200
+    res_a = InMemoryResponseFunctionResource(
+        sh_coeffs=np.concatenate(([l0_a], rng.random(44) * 100)), avg_signal=1000.0
+    )
+    l0_b = 500
+    res_b = InMemoryResponseFunctionResource(
+        sh_coeffs=np.concatenate(([l0_b], rng.random(44) * 100)), avg_signal=800.0
+    )
+
+    # Test combining
+    result = combine_response_functions([res_a, res_b])
+    avg_l0 = (l0_a + l0_b) / 2.0
+    expected_sh_coeffs = res_a.sh_coeffs * (avg_l0 / l0_a) + res_b.sh_coeffs * (
+        avg_l0 / l0_b
+    )
+    expected_sh_coeffs /= 2.0
+
+    assert np.allclose(result.sh_coeffs, expected_sh_coeffs)
+
+    res_error = InMemoryResponseFunctionResource(
+        sh_coeffs=np.concatenate(([l0_b], rng.random(42) * 100)), avg_signal=800.0
+    )
+
+    with pytest.raises(
+        ValueError, match="must have the same number of SH coefficients"
+    ):
+        combine_response_functions([res_a, res_error])
