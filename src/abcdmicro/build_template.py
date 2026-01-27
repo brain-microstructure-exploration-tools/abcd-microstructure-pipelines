@@ -49,7 +49,7 @@ def average_volumes(
     for vol in volume_list:
         img = vol.get_array()
         if normalize:
-            img /= np.mean(img)
+            img = img / np.mean(img)
 
         # Resample to reference space
         ants_img = ants.from_numpy(img)
