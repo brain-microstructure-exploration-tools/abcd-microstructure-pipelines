@@ -37,8 +37,6 @@
 # you call `.load()`.
 
 # %%
-from __future__ import annotations
-
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -128,7 +126,6 @@ mask = dwi_denoised.extract_brain()
 # %matplotlib inline
 
 import sys
-
 from IPython import get_ipython
 
 kernel = get_ipython().kernel
@@ -192,11 +189,7 @@ evals = evals_vol.get_array()  # shape (x, y, z, 3)
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 for i, (ax, label) in enumerate(
-    zip(
-        axes,
-        [r"$\lambda_1$ (axial)", r"$\lambda_2$", r"$\lambda_3$ (radial)"],
-        strict=False,
-    )
+    zip(axes, [r"$\lambda_1$ (axial)", r"$\lambda_2$", r"$\lambda_3$ (radial)"])
 ):
     im = ax.imshow(
         evals[:, :, mid_slice, i].T, cmap="inferno", origin="lower", vmin=0, vmax=3e-3
@@ -223,18 +216,8 @@ noddi = dwi_denoised.estimate_noddi(mask=mask)
 # %%
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 for ax, arr, title, cmap in [
-    (
-        axes[0],
-        noddi.ndi.get_array()[:, :, mid_slice],
-        "NDI (neurite density)",
-        "YlOrRd",
-    ),
-    (
-        axes[1],
-        noddi.odi.get_array()[:, :, mid_slice],
-        "ODI (orientation dispersion)",
-        "YlGnBu",
-    ),
+    (axes[0], noddi.ndi.get_array()[:, :, mid_slice], "NDI (neurite density)", "YlOrRd"),
+    (axes[1], noddi.odi.get_array()[:, :, mid_slice], "ODI (orientation dispersion)", "YlGnBu"),
     (axes[2], noddi.fwf.get_array()[:, :, mid_slice], "FWF (free water)", "Blues"),
 ]:
     im = ax.imshow(arr.T, cmap=cmap, origin="lower", vmin=0, vmax=1)
@@ -282,9 +265,7 @@ plt.show()
 # %%
 from abcdmicro.tractseg import extract_tractseg
 
-tracts = extract_tractseg(
-    dwi_denoised, mask, response, output_type="tract_segmentation"
-)
+tracts = extract_tractseg(dwi_denoised, mask, response, output_type="tract_segmentation")
 
 # %%
 tracts_arr = tracts.get_array()  # (x, y, z, 72)
@@ -294,7 +275,7 @@ bundle_names = ["CST_left", "CST_right", "CC", "SLF_I_left"]
 bundle_indices = [0, 1, 4, 20]
 
 fig, axes = plt.subplots(1, len(bundle_indices), figsize=(14, 4))
-for ax, idx, name in zip(axes, bundle_indices, bundle_names, strict=False):
+for ax, idx, name in zip(axes, bundle_indices, bundle_names):
     ax.imshow(denoised.T, cmap="gray", origin="lower", alpha=0.5)
     ax.contour(tracts_arr[:, :, mid_slice, idx].T, colors="lime", linewidths=0.8)
     ax.set_title(name)
