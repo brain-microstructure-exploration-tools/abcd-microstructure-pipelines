@@ -7,8 +7,10 @@ code in this repository.
 
 This is a Python package (`abcdmicro`) for extracting brain microstructure
 parameters from diffusion MRI (dMRI) data from the ABCD Study. It provides
-components for building pipelines that perform denoising, brain extraction, and
-microstructure estimation (DTI and NODDI models).
+components for building pipelines that perform denoising, brain extraction,
+microstructure estimation (DTI and NODDI models), CSD/FOD estimation, white
+matter tract segmentation (TractSeg), and population template construction
+(ANTs).
 
 ## Development Commands
 
@@ -83,11 +85,11 @@ for lazy loading and polymorphic storage:
 
 - **`Resource`**: Abstract base with `load()` method
 - **In-Memory Resources**: `InMemoryVolumeResource`, `InMemoryBvalResource`,
-  `InMemoryBvecResource`
+  `InMemoryBvecResource`, `InMemoryResponseFunctionResource`
   - `is_loaded = True` (class variable)
   - `load()` returns self (no-op)
 - **On-Disk Resources**: `NiftiVolumeResource`, `FslBvalResource`,
-  `FslBvecResource`
+  `FslBvecResource`, `JsonResponseFunctionResource`
   - `is_loaded = False`
   - `load()` reads from disk and returns corresponding InMemory resource
   - Static `save()` method writes to disk and returns on-disk Resource
@@ -135,12 +137,10 @@ Pipeline functions typically return Resources, while wrapper methods on domain
 objects return new domain objects:
 
 1. **Denoising** (`src/abcdmicro/denoise.py`):
-
    - `denoise_dwi(dwi: Dwi) -> InMemoryVolumeResource`
    - Uses DIPY's Patch2Self algorithm
 
 2. **Masking** (`src/abcdmicro/masks.py`):
-
    - `brain_extract_batch(cases: list[tuple[Dwi, Path]]) -> list[NiftiVolumeResource]`
    - `brain_extract_single(dwi: Dwi, output_path: PathLike) -> NiftiVolumeResource`
    - Uses HD-BET (deep learning) on mean b0 images
@@ -148,7 +148,6 @@ objects return new domain objects:
      expensive
 
 3. **DTI Estimation** (`src/abcdmicro/dti.py`):
-
    - `Dti.estimate_from_dwi(dwi: Dwi, mask: VolumeResource | None) -> Dti`
    - Uses DIPY's TensorModel
    - Returns 6 values per voxel (lower triangular of symmetric tensor)
@@ -161,6 +160,40 @@ objects return new domain objects:
      water fraction)
    - **Important**: AMICO writes kernels to disk; code redirects to temp
      directory via `set_config("ATOMS_path", tmpdir)`
+
+5. **Response Function Estimation** (`src/abcdmicro/csd.py`):
+   - `estimate_response_function(dwi, mask, ...) -> InMemoryResponseFunctionResource`
+   - Single-Shell Single-Tissue (SSST) estimation using DIPY
+   - Selects high-FA voxels in brain center (corpus callosum region)
+   - Uses only b-values ≤ 1200; warns if < 100 voxels selected
+   - Returns SH coefficients (m=0 terms for even degrees) and average signal
+
+6. **CSD / FOD Estimation** (`src/abcdmicro/csd.py`):
+   - `compute_csd_fods(dwi, mask, response, ...) -> NDArray` - spherical
+     harmonic coefficients of fiber orientation distributions
+   - `compute_csd_peaks(dwi, mask, response, ...) -> tuple[VolumeResource, VolumeResource]`
+     - peak directions and peak values extracted from FODs
+   - `combine_csd_peaks_to_vector_volume(dirs, values)` - converts to
+     MRtrix3-style scaled direction vectors
+   - Auto-estimates response function if not provided
+   - Supports optional b-vector x-flip and MRtrix3 SH basis conversion
+
+7. **TractSeg** (`src/abcdmicro/tractseg.py`):
+   - `extract_tractseg(dwi, mask, response, output_type) -> VolumeResource`
+   - Runs white matter tract segmentation via CSD peaks
+   - Output types: `tract_segmentation` (72 bundles), `endings_segmentation` (72
+     × 2 end regions), `TOM` (20 × 3 orientations)
+   - Auto-estimates response function if not provided
+
+8. **Population Template Construction** (`src/abcdmicro/build_template.py`):
+   - `average_volumes(volume_list, normalize) -> InMemoryVolumeResource`
+   - `build_template(volume_list, initial_template, iterations) -> InMemoryVolumeResource`
+     - Iterative unbiased group-wise template via ANTs SyN registration
+     - Average warped images → average transforms → inverse mean shift → sharpen
+   - `build_multi_metric_template(subject_list, ...) -> dict[str, InMemoryVolumeResource]`
+     - Multi-modality extension: affine on primary modality, SyN with
+       multivariate metrics across modalities
+   - Pure VolumeResource-based (no Dwi dependency)
 
 ### ABCD Study Integration
 
@@ -272,12 +305,22 @@ When combining multiple `Dwi` objects (Philips scanner workflow):
 6. **All save() methods return new objects** - functional style, never mutate
    originals
 7. **gen_masks operates on mean b0 images** - not the full DWI volume
+8. **CSD functions support b-vector x-flip** - needed for MRtrix3 convention
+   compatibility (`flip_bvecs_x` parameter)
+9. **ResponseFunctionResource stores SH coefficients** - m=0 terms for even
+   degrees, plus average signal; can convert to/from DIPY's prolate tensor
+   format via `from_prolate_tensor()`
+10. **TractSeg operates on CSD peaks** - not raw DWI; internally calls
+    `compute_csd_peaks()` then feeds to TractSeg
+11. **Template building uses ANTs SyN** - iterative registration with inverse
+    mean shift for unbiased templates; sharpening applied at each iteration
 
 ## Testing Strategy
 
-- Use `pytest-mock` for mocking expensive operations (HD-BET, AMICO)
+- Use `pytest-mock` for mocking expensive operations (HD-BET, AMICO, TractSeg)
 - Test data fixtures use synthetic volumes with known properties
-- Warn/error filters accommodate AMICO dependencies (see pyproject.toml)
+- Warn/error filters accommodate AMICO and TractSeg dependencies (see
+  pyproject.toml)
 - Coverage target excludes TYPE_CHECKING blocks and ellipsis
 
 ## Dependencies
@@ -287,6 +330,8 @@ When combining multiple `Dwi` objects (Philips scanner workflow):
 - **dipy** (>=1.9): Diffusion imaging toolkit
 - **dmri-amico** (==2.1.0): NODDI model fitting
 - **hd-bet** (==2.0.1): Deep learning brain extraction
+- **TractSeg**: White matter tract segmentation
+- **antspyx**: ANTs image registration and template building
 - **nibabel**: NIfTI file I/O
 - **click**: CLI framework
 
