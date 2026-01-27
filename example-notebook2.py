@@ -268,15 +268,23 @@ from abcdmicro.tractseg import extract_tractseg
 tracts = extract_tractseg(dwi_denoised, mask, response, output_type="tract_segmentation")
 
 # %%
+from tractseg.data.dataset_specific_utils import get_bundle_names
+all_names = get_bundle_names("All")[1:]  # skip BG
+
 tracts_arr = tracts.get_array()  # (x, y, z, 72)
 print(f"TractSeg output shape: {tracts_arr.shape}")
 
-bundle_names = ["CST_left", "CST_right", "CC", "SLF_I_left"]
-bundle_indices = [0, 1, 4, 20]
+bundle_names = [
+    "AF_left",
+    "CST_right",
+    "CC_1", # rostrum
+    "CC_7", # splenium
+]
+bundle_indices = [all_names.index(n) for n in bundle_names]
 
 fig, axes = plt.subplots(1, len(bundle_indices), figsize=(14, 4))
 for ax, idx, name in zip(axes, bundle_indices, bundle_names):
-    ax.imshow(denoised.T, cmap="gray", origin="lower", alpha=0.5)
+    ax.imshow(denoised.T, cmap="gray", origin="lower")
     ax.contour(tracts_arr[:, :, mid_slice, idx].T, colors="lime", linewidths=0.8)
     ax.set_title(name)
     ax.axis("off")
