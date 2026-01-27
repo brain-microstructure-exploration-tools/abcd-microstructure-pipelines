@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import nibabel as nib
 import numpy as np
 import pytest
 from dipy.core.gradients import gradient_table
@@ -189,3 +190,44 @@ def test_dipy_conversion(
         res = InMemoryResponseFunctionResource.from_dipy_object(
             prolate_response_function
         )
+
+
+def test_volume_resource_ants_conversion():
+    # Create dummy voluem resource
+    data = np.zeros((20, 25, 30), dtype=np.float32)
+    data[5, 10, 15] = 100.0
+
+    # Create a non-identity affine
+    affine = np.diag([2, 2, 2, 1])
+    affine[:3, 3] = [10, 20, 30]
+
+    hdr = nib.Nifti1Header()
+    hdr.set_xyzt_units(xyz="mm", t="sec")
+
+    initial_volume = InMemoryVolumeResource(
+        array=data, affine=affine, metadata=dict(hdr)
+    )
+
+    # Volume resource to ANTs conversion
+    ants_img = initial_volume.to_ants_image()
+
+    # Check ants image
+    assert ants_img.shape == (20, 25, 30)
+    assert ants_img.spacing == (2.0, 2.0, 2.0)
+
+    ## ANTs to volume resource conversion
+    final_volume = InMemoryVolumeResource.from_ants_image(ants_img)
+
+    assert np.allclose(final_volume.get_array(), initial_volume.get_array())
+    assert final_volume.get_array()[5, 10, 15] == 100.0
+
+    # CHeck that the affine is preserved after orientation conversions (RAS <-> LPS)
+    assert np.allclose(
+        final_volume.get_affine(), initial_volume.get_affine(), atol=1e-5
+    )
+
+    # Check metadata
+    final_hdr = nib.Nifti1Header()
+    for key, val in final_volume.get_metadata().items():
+        final_hdr[key] = val
+    assert final_hdr.get_xyzt_units()[0] == "mm"
