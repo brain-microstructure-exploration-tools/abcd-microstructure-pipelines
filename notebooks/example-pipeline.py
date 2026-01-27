@@ -102,8 +102,9 @@ axes[0].imshow(orig.T, cmap="gray", origin="lower")
 axes[0].set_title("Original")
 axes[1].imshow(denoised.T, cmap="gray", origin="lower")
 axes[1].set_title("Denoised")
-axes[2].imshow((orig - denoised).T, cmap="bwr", origin="lower")
+im = axes[2].imshow((orig - denoised).T, cmap="bwr", origin="lower")
 axes[2].set_title("Residual (noise removed)")
+plt.colorbar(im, ax=axes[2], fraction=0.046)
 for ax in axes:
     ax.axis("off")
 plt.tight_layout()
@@ -201,15 +202,15 @@ plt.show()
 # %% [markdown]
 # ## 5. NODDI estimation
 #
-# NODDI (Neurite Orientation Dispersion and Density Imaging) provides
-# biophysically meaningful parameters:
+# `estimate_noddi()` fits a NODDI model at each voxel using AMICO. The resulting `Noddi` object
+# gives access to the following biophysically meaningful parameters:
 #
 # - **NDI** — neurite density index
 # - **ODI** — orientation dispersion index
 # - **FWF** — free water fraction
 
 # %%
-noddi = dwi_denoised.estimate_noddi(mask=mask)
+noddi = dwi_denoised.estimate_noddi(mask=mask) # array shape (x, y, z, 3)
 
 # %%
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
@@ -283,10 +284,14 @@ bundle_names = [
 ]
 bundle_indices = [all_names.index(n) for n in bundle_names]
 
+
+denoised_meanb0 = dwi_denoised.compute_mean_b0()
 fig, axes = plt.subplots(1, len(bundle_indices), figsize=(14, 4))
 for ax, idx, name in zip(axes, bundle_indices, bundle_names):
-    ax.imshow(denoised.T, cmap="gray", origin="lower")
-    ax.contour(tracts_arr[:, :, mid_slice, idx].T, colors="lime", linewidths=0.8)
+    bundle_data = tracts_arr[:, :, :, idx]
+    best_slice_idx = bundle_data.sum(axis=(0, 1)).argmax() # Find the slice with the most segmented voxels
+    ax.imshow(denoised_meanb0.get_array()[:, :, best_slice_idx].T, cmap="gray", origin="lower")
+    ax.contour(tracts_arr[:, :, best_slice_idx, idx].T, colors="lime", linewidths=0.8)
     ax.set_title(name)
     ax.axis("off")
 plt.suptitle("Selected tract segmentations")
@@ -310,7 +315,7 @@ dti_saved = dti.save(output_dir / "dti.nii.gz")
 NiftiVolumeResource.save(fa_vol, output_dir / "fa.nii.gz")
 NiftiVolumeResource.save(md_vol, output_dir / "md.nii.gz")
 
-# Save NODDI
+# Save NODDI (volume + directions)
 noddi_saved = noddi.save(output_dir / "noddi.nii.gz")
 
 # Save brain mask

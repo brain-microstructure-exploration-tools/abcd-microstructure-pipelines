@@ -158,7 +158,7 @@ tmpl_arr = fa_template.get_array()
 mid = avg_arr.shape[2] // 2
 
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-axes[0].imshow(avg_arr[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
+axes[0].imshow(avg_arr[:, :, mid].T, cmap="hot", origin="lower", vmin=0)
 axes[0].set_title("Simple average (no registration)")
 axes[1].imshow(tmpl_arr[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
 axes[1].set_title("Population template (3 iterations)")
