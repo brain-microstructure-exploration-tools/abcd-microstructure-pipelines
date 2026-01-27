@@ -13,7 +13,7 @@
 # ---
 
 # %% [markdown]
-# # abcdmicro: Diffusion MRI Microstructure Pipeline
+# # abcdmicro: Diffusion MRI Microstructure Example Pipeline
 #
 # This notebook demonstrates the main capabilities of the `abcdmicro` package
 # for extracting brain microstructure parameters from diffusion MRI data.
@@ -37,6 +37,8 @@
 # you call `.load()`.
 
 # %%
+from __future__ import annotations
+
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -46,11 +48,11 @@ from abcdmicro.dwi import Dwi
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 
 data_dir = Path(
-    "/home/ebrahim/abcd-microstructure-pipelines/"
-    "NDARINVY7EU2VZ6_2YearFollowUpYArm1_ABCD-MPROC-DTI_20210124111050/"
-    "sub-NDARINVY7EU2VZ6/ses-2YearFollowUpYArm1/dwi"
+    "/data/ebrahim-data/abcd/abcd_image_sample_for_sadhana/"
+    "NDARINVV1BV9PWF_2YearFollowUpYArm1_ABCD-MPROC-DTI_20190715155143/"
+    "sub-NDARINVV1BV9PWF/ses-2YearFollowUpYArm1/dwi"
 )
-basename = "sub-NDARINVY7EU2VZ6_ses-2YearFollowUpYArm1_run-01_dwi"
+basename = "sub-NDARINVV1BV9PWF_ses-2YearFollowUpYArm1_run-01_dwi"
 
 dwi = Dwi(
     NiftiVolumeResource(data_dir / f"{basename}.nii.gz"),
@@ -121,6 +123,18 @@ plt.show()
 mask = dwi_denoised.extract_brain()
 
 # %%
+# (This cell fixes a few notebook output issues casued by the HD-BET masking step above)
+
+# %matplotlib inline
+
+import sys
+
+from IPython import get_ipython
+
+kernel = get_ipython().kernel
+sys.stdout = kernel._stdout
+
+# %%
 mask_arr = mask.get_array()
 print(f"Mask shape: {mask_arr.shape}, voxels in brain: {mask_arr.sum()}")
 
@@ -178,7 +192,11 @@ evals = evals_vol.get_array()  # shape (x, y, z, 3)
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 for i, (ax, label) in enumerate(
-    zip(axes, [r"$\lambda_1$ (axial)", r"$\lambda_2$", r"$\lambda_3$ (radial)"])
+    zip(
+        axes,
+        [r"$\lambda_1$ (axial)", r"$\lambda_2$", r"$\lambda_3$ (radial)"],
+        strict=False,
+    )
 ):
     im = ax.imshow(
         evals[:, :, mid_slice, i].T, cmap="inferno", origin="lower", vmin=0, vmax=3e-3
@@ -205,9 +223,19 @@ noddi = dwi_denoised.estimate_noddi(mask=mask)
 # %%
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 for ax, arr, title, cmap in [
-    (axes[0], noddi.ndi[:, :, mid_slice], "NDI (neurite density)", "YlOrRd"),
-    (axes[1], noddi.odi[:, :, mid_slice], "ODI (orientation dispersion)", "YlGnBu"),
-    (axes[2], noddi.fwf[:, :, mid_slice], "FWF (free water)", "Blues"),
+    (
+        axes[0],
+        noddi.ndi.get_array()[:, :, mid_slice],
+        "NDI (neurite density)",
+        "YlOrRd",
+    ),
+    (
+        axes[1],
+        noddi.odi.get_array()[:, :, mid_slice],
+        "ODI (orientation dispersion)",
+        "YlGnBu",
+    ),
+    (axes[2], noddi.fwf.get_array()[:, :, mid_slice], "FWF (free water)", "Blues"),
 ]:
     im = ax.imshow(arr.T, cmap=cmap, origin="lower", vmin=0, vmax=1)
     ax.set_title(title)
@@ -254,7 +282,9 @@ plt.show()
 # %%
 from abcdmicro.tractseg import extract_tractseg
 
-tracts = extract_tractseg(dwi_denoised, mask, response, output_type="tract_segmentation")
+tracts = extract_tractseg(
+    dwi_denoised, mask, response, output_type="tract_segmentation"
+)
 
 # %%
 tracts_arr = tracts.get_array()  # (x, y, z, 72)
@@ -264,7 +294,7 @@ bundle_names = ["CST_left", "CST_right", "CC", "SLF_I_left"]
 bundle_indices = [0, 1, 4, 20]
 
 fig, axes = plt.subplots(1, len(bundle_indices), figsize=(14, 4))
-for ax, idx, name in zip(axes, bundle_indices, bundle_names):
+for ax, idx, name in zip(axes, bundle_indices, bundle_names, strict=False):
     ax.imshow(denoised.T, cmap="gray", origin="lower", alpha=0.5)
     ax.contour(tracts_arr[:, :, mid_slice, idx].T, colors="lime", linewidths=0.8)
     ax.set_title(name)
