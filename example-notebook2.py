@@ -64,16 +64,20 @@ print(f"Volume shape: {vol.shape}")
 print(f"Unique b-values: {np.unique(np.round(bvals, -2))}")
 
 # %% [markdown]
-# Quick look at a b=0 image and a diffusion-weighted image side by side.
+# Quick look at the mean b=0 image and a diffusion-weighted image side by side.
+# `compute_mean_b0()` averages all b=0 volumes, which is also used internally
+# by brain extraction.
 
 # %%
-b0_idx = np.argmin(bvals)
-dwi_idx = np.argmax(bvals)
+mean_b0 = dwi.compute_mean_b0()
+mean_b0_arr = mean_b0.get_array()
 mid_slice = vol.shape[2] // 2
 
+# %%
+dwi_idx = np.argmax(bvals)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
-axes[0].imshow(vol[:, :, mid_slice, b0_idx].T, cmap="gray", origin="lower")
-axes[0].set_title(f"b = {bvals[b0_idx]:.0f}")
+axes[0].imshow(mean_b0_arr[:, :, mid_slice].T, cmap="gray", origin="lower")
+axes[0].set_title("Mean b = 0")
 axes[1].imshow(vol[:, :, mid_slice, dwi_idx].T, cmap="gray", origin="lower")
 axes[1].set_title(f"b = {bvals[dwi_idx]:.0f}")
 for ax in axes:
@@ -91,8 +95,9 @@ plt.show()
 # %%
 dwi_denoised = dwi.denoise()
 
-orig = dwi.volume.get_array()[:, :, mid_slice, b0_idx]
-denoised = dwi_denoised.volume.get_array()[:, :, mid_slice, b0_idx]
+# %%
+orig = mean_b0_arr[:, :, mid_slice]
+denoised = dwi_denoised.compute_mean_b0().get_array()[:, :, mid_slice]
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 axes[0].imshow(orig.T, cmap="gray", origin="lower")
@@ -115,6 +120,7 @@ plt.show()
 # %%
 mask = dwi_denoised.extract_brain()
 
+# %%
 mask_arr = mask.get_array()
 print(f"Mask shape: {mask_arr.shape}, voxels in brain: {mask_arr.sum()}")
 
@@ -138,8 +144,9 @@ plt.show()
 
 # %%
 dti = dwi_denoised.estimate_dti(mask=mask)
-
 fa_vol, md_vol = dti.get_fa_md()
+
+# %%
 fa = fa_vol.get_array()
 md = md_vol.get_array()
 
@@ -147,13 +154,11 @@ fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 im0 = axes[0].imshow(fa[:, :, mid_slice].T, cmap="hot", origin="lower", vmin=0, vmax=1)
 axes[0].set_title("Fractional Anisotropy (FA)")
 plt.colorbar(im0, ax=axes[0], fraction=0.046)
-
 im1 = axes[1].imshow(
     md[:, :, mid_slice].T, cmap="viridis", origin="lower", vmin=0, vmax=3e-3
 )
 axes[1].set_title("Mean Diffusivity (MD)")
 plt.colorbar(im1, ax=axes[1], fraction=0.046)
-
 for ax in axes:
     ax.axis("off")
 plt.tight_layout()
@@ -167,6 +172,8 @@ plt.show()
 
 # %%
 evals_vol, evecs_vol = dti.get_eig()
+
+# %%
 evals = evals_vol.get_array()  # shape (x, y, z, 3)
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
@@ -195,6 +202,7 @@ plt.show()
 # %%
 noddi = dwi_denoised.estimate_noddi(mask=mask)
 
+# %%
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 for ax, arr, title, cmap in [
     (axes[0], noddi.ndi[:, :, mid_slice], "NDI (neurite density)", "YlOrRd"),
@@ -218,15 +226,14 @@ plt.show()
 from abcdmicro.csd import compute_csd_peaks, estimate_response_function
 
 response = estimate_response_function(dwi_denoised, mask)
-
 peak_dirs, peak_values = compute_csd_peaks(dwi_denoised, mask, response)
+
+# %%
 peak_dirs_arr = peak_dirs.get_array()  # (x, y, z, n_peaks, 3)
 peak_vals_arr = peak_values.get_array()  # (x, y, z, n_peaks)
-
 print(f"Peak directions shape: {peak_dirs_arr.shape}")
 print(f"Peak values shape: {peak_vals_arr.shape}")
 
-# Show number of peaks per voxel
 n_peaks_per_voxel = (peak_vals_arr > 0).sum(axis=-1)
 fig, ax = plt.subplots(figsize=(5, 4))
 im = ax.imshow(
@@ -248,12 +255,13 @@ plt.show()
 from abcdmicro.tractseg import extract_tractseg
 
 tracts = extract_tractseg(dwi_denoised, mask, response, output_type="tract_segmentation")
+
+# %%
 tracts_arr = tracts.get_array()  # (x, y, z, 72)
 print(f"TractSeg output shape: {tracts_arr.shape}")
 
-# Show a few example tract bundles
 bundle_names = ["CST_left", "CST_right", "CC", "SLF_I_left"]
-bundle_indices = [0, 1, 4, 20]  # approximate indices
+bundle_indices = [0, 1, 4, 20]
 
 fig, axes = plt.subplots(1, len(bundle_indices), figsize=(14, 4))
 for ax, idx, name in zip(axes, bundle_indices, bundle_names):
@@ -269,13 +277,13 @@ plt.show()
 # ## 8. Saving results to disk
 #
 # All results can be saved to NIfTI files. `save()` returns a new object
-# backed by on-disk resources.
+# backed by on-disk resources (functional style — originals are unchanged).
 
 # %%
 output_dir = Path("output")
 output_dir.mkdir(exist_ok=True)
 
-# Save DTI
+# Save DTI tensor volume
 dti_saved = dti.save(output_dir / "dti.nii.gz")
 
 # Save individual FA and MD maps
@@ -288,7 +296,7 @@ noddi_saved = noddi.save(output_dir / "noddi.nii.gz")
 # Save brain mask
 NiftiVolumeResource.save(mask, output_dir / "brain_mask.nii.gz")
 
-# Save the denoised DWI
+# Save the denoised DWI (volume + bval + bvec)
 dwi_denoised.save(output_dir, basename="denoised_dwi")
 
 print(f"Results saved to {output_dir.resolve()}")
