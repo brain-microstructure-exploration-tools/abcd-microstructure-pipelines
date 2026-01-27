@@ -266,6 +266,9 @@ from abcdmicro.tractseg import extract_tractseg
 tracts = extract_tractseg(dwi_denoised, mask, response, output_type="tract_segmentation")
 
 # %%
+# The tractseg step above changes this; we need to change it back for notebook plotting:
+# %matplotlib inline
+
 from tractseg.data.dataset_specific_utils import get_bundle_names
 all_names = get_bundle_names("All")[1:]  # skip BG
 
