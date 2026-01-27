@@ -4,6 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
+import ants
+import nibabel as nib
 import numpy as np
 from dipy.core.geometry import cart2sphere
 from dipy.core.gradients import GradientTable
@@ -45,8 +47,9 @@ class VolumeResource(Resource):
     def get_metadata(self) -> dict[str, Any]:
         """Get the volume image metadata"""
 
-    def load(self) -> VolumeResource:
-        return self
+    @abstractmethod
+    def load(self) -> InMemoryVolumeResource:
+        """Load volume into memory"""
 
 
 @dataclass
@@ -69,6 +72,45 @@ class InMemoryVolumeResource(VolumeResource):
 
     def get_metadata(self) -> dict[Any, Any]:
         return self.metadata
+
+    def load(self) -> InMemoryVolumeResource:
+        return self
+
+    def to_ants_image(self) -> ants.ANTsImage:
+        """Convert to an ANTsImage.
+        This conversion creates a deep copy of the underlying data.
+        The coordinate system is also converted from Nibabel's RAS+ to ANTs/ LPS+ orientation.
+        """
+
+        header = nib.Nifti1Header()
+        for key, val in self.get_metadata().items():
+            header[key] = val
+
+        current_units = header.get_xyzt_units()
+        if current_units[0] != "mm":
+            error_msg = (
+                "Volume must have spatial units in 'mm' for conversion to ANTsImage."
+            )
+            raise ValueError(error_msg)
+
+        nib_image = nib.Nifti1Image(
+            dataobj=self.get_array(),
+            affine=self.get_affine(),
+            header=header,
+        )
+
+        return ants.from_nibabel_nifti(nib_image)
+
+    @staticmethod
+    def from_ants_image(ants_image: ants.ANTsImage) -> InMemoryVolumeResource:
+        """Create an InMemoryVolumeResource from an ANTsImage."""
+        nib_image = ants.to_nibabel_nifti(ants_image)
+
+        return InMemoryVolumeResource(
+            array=nib_image.get_fdata(),
+            affine=nib_image.affine,
+            metadata=dict(nib_image.header),
+        )
 
 
 class BvalResource(Resource):
