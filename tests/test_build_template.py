@@ -78,7 +78,7 @@ def test_update_template():
     aff.set_parameters(aff_params)
 
     # Dummy warp - shift by 5 in X dimension
-    warp_data = np.zeros((10, 10, 10, 1, 3))
+    warp_data = np.zeros((10, 10, 10, 3))
     warp_data[..., 0] = -5.0
     avg_warp = ants.from_numpy(warp_data, has_components=True)
 
