@@ -132,23 +132,7 @@ def test_build_template(
         return_value=mock_ants_registration_return_value,
     )
 
-    # Mock ants.image_read (used to read warp fields)
     avg_array = average_volume.get_array()
-    warp_data = np.zeros((*avg_array.shape, 1, 3))
-    mocker.patch(
-        "ants.image_read",
-        return_value=ants.from_numpy(warp_data, has_components=True),
-    )
-
-    # Mock ants.average_affine_transform
-    identity_affine_transform = ants.new_ants_transform(
-        transform_type="AffineTransform", dimension=3
-    )
-    mocker.patch(
-        "ants.average_affine_transform",
-        return_value=identity_affine_transform,
-    )
-
     # Mock ants.apply_transforms (used in _update_template)
     mocker.patch(
         "ants.apply_transforms",
