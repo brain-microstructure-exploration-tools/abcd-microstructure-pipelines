@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import ants
+import nibabel as nib
 import numpy as np
 import pytest
 from ants.core import ANTsImage
@@ -24,28 +25,40 @@ from abcdmicro.resource import (
 
 
 @pytest.fixture
-def dwi1() -> Dwi:
+def small_nifti_header():
+    hdr = nib.Nifti1Header()
+    hdr["descrip"] = b"an abcdmicro unit test header description"
+    hdr.set_xyzt_units(xyz="mm")
+    return hdr
+
+
+@pytest.fixture
+def dwi1(small_nifti_header) -> Dwi:
     rng = np.random.default_rng(2656542)
     volume_array = rng.random(size=(3, 4, 5, 6), dtype=float)
     bvals = np.array([0, 1000, 500, 0, 0, 500], dtype=float)
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
     return Dwi(
-        volume=InMemoryVolumeResource(array=volume_array, affine=np.eye(4)),
+        volume=InMemoryVolumeResource(
+            array=volume_array, affine=np.eye(4), metadata=dict(small_nifti_header)
+        ),
         bval=InMemoryBvalResource(bvals),
         bvec=InMemoryBvecResource(bvecs),
     )
 
 
 @pytest.fixture
-def dwi2() -> Dwi:
+def dwi2(small_nifti_header) -> Dwi:
     rng = np.random.default_rng(26540)
     volume_array = rng.random(size=(3, 5, 7, 6), dtype=float)
     bvals = np.array([0, 1000, 500, 0, 0, 500], dtype=float)
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
     return Dwi(
-        volume=InMemoryVolumeResource(array=volume_array, affine=np.eye(4)),
+        volume=InMemoryVolumeResource(
+            array=volume_array, affine=np.eye(4), metadata=dict(small_nifti_header)
+        ),
         bval=InMemoryBvalResource(bvals),
         bvec=InMemoryBvecResource(bvecs),
     )
