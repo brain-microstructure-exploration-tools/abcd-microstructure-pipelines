@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import ants
+import nibabel as nib
 import numpy as np
 import pytest
 
@@ -16,28 +17,40 @@ from abcdmicro.resource import (
 
 
 @pytest.fixture
-def dwi1() -> Dwi:
+def small_nifti_header():
+    hdr = nib.Nifti1Header()
+    hdr["descrip"] = b"an abcdmicro unit test header description"
+    hdr.set_xyzt_units(xyz="mm")
+    return hdr
+
+
+@pytest.fixture
+def dwi1(small_nifti_header) -> Dwi:
     rng = np.random.default_rng(2656542)
     volume_array = rng.random(size=(10, 10, 10, 6), dtype=float)
     bvals = np.array([0, 1000, 500, 0, 0, 500], dtype=float)
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
     return Dwi(
-        volume=InMemoryVolumeResource(array=volume_array, affine=np.eye(4)),
+        volume=InMemoryVolumeResource(
+            array=volume_array, affine=np.eye(4), metadata=dict(small_nifti_header)
+        ),
         bval=InMemoryBvalResource(bvals),
         bvec=InMemoryBvecResource(bvecs),
     )
 
 
 @pytest.fixture
-def dwi2() -> Dwi:
+def dwi2(small_nifti_header) -> Dwi:
     rng = np.random.default_rng(26540)
     volume_array = rng.random(size=(12, 8, 10, 6), dtype=float)
     bvals = np.array([0, 1000, 500, 0, 0, 500], dtype=float)
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
     return Dwi(
-        volume=InMemoryVolumeResource(array=volume_array, affine=np.eye(4)),
+        volume=InMemoryVolumeResource(
+            array=volume_array, affine=np.eye(4), metadata=dict(small_nifti_header)
+        ),
         bval=InMemoryBvalResource(bvals),
         bvec=InMemoryBvecResource(bvecs),
     )
@@ -96,10 +109,14 @@ def test_register_volumes(dwi1: Dwi, dwi2: Dwi, tmp_path):
 
     # Test with masks
     f_mask = InMemoryVolumeResource(
-        array=np.ones(fixed_scalar_volume.get_array().shape)
+        array=np.ones(fixed_scalar_volume.get_array().shape),
+        affine=fixed_scalar_volume.get_affine(),
+        metadata=fixed_scalar_volume.get_metadata(),
     )
     m_mask = InMemoryVolumeResource(
-        array=np.ones(moving_scalar_volume.get_array().shape)
+        array=np.ones(moving_scalar_volume.get_array().shape),
+        affine=moving_scalar_volume.get_affine(),
+        metadata=moving_scalar_volume.get_metadata(),
     )
 
     reg_vol, transform = register_volumes(
@@ -130,7 +147,7 @@ def test_register_volumes_without_warps(
     assert len(transform._ants_inv_paths) == 1
 
     assert transform.matrices is not None
-    assert transform.warp_fields is None
+    assert transform.warp_fields == []
     assert len(transform.matrices) == 1
 
     assert isinstance(registered_volume, InMemoryVolumeResource)
@@ -159,16 +176,15 @@ def test_register_volumes_without_warps(
     )
 
 
-def test_register_volumes_with_incorrect_mask(
-    dwi1: Dwi,
-    dwi2: Dwi,
-):
+def test_register_volumes_with_incorrect_mask(dwi1: Dwi, dwi2: Dwi, small_nifti_header):
     fixed = dwi1.compute_mean_b0()
     moving = dwi2.compute_mean_b0()
 
     # Create a mask with the wrong shape
     wrong_mask = InMemoryVolumeResource(
-        array=np.ones(moving.get_array().shape), affine=moving.get_affine()
+        array=np.ones(moving.get_array().shape),
+        affine=moving.get_affine(),
+        metadata=dict(small_nifti_header),
     )
 
     with pytest.raises(ValueError, match="Fixed mask dimensions do not match"):
@@ -176,7 +192,9 @@ def test_register_volumes_with_incorrect_mask(
 
     # Create a mask with the wrong shape
     wrong_mask = InMemoryVolumeResource(
-        array=np.ones(fixed.get_array().shape), affine=moving.get_affine()
+        array=np.ones(fixed.get_array().shape),
+        affine=moving.get_affine(),
+        metadata=dict(small_nifti_header),
     )
 
     with pytest.raises(ValueError, match="Moving mask dimensions do not match"):

@@ -46,12 +46,8 @@ class TransformResource:
             warp_volumes = []
             for p in warp_paths:
                 ants_img = ants.image_read(p)
-                warp_volumes.append(
-                    InMemoryVolumeResource(
-                        array=ants_img.numpy(), affine=self._ref_affine
-                    )
-                )
-                self._warps = warp_volumes
+                warp_volumes.append(InMemoryVolumeResource.from_ants_image(ants_img))
+            self._warps = warp_volumes
         return self._warps
 
     @staticmethod
@@ -66,7 +62,7 @@ class TransformResource:
         return TransformResource(
             _ants_fwd_paths=ants_fwdtransforms,
             _ants_inv_paths=ants_result["invtransforms"],
-            _ref_affine=ref_volume.get_affine(),
+            _ref_affine=ref_volume.load().get_affine(),
         )
 
     def apply(
@@ -78,8 +74,11 @@ class TransformResource:
     ) -> InMemoryVolumeResource:
         """Wrapper around ants.apply_transforms using this result."""
 
-        ants_fixed = ants.from_numpy(fixed.get_array())
-        ants_moving = ants.from_numpy(moving.get_array())
+        fixed = fixed.load()
+        moving = moving.load()
+
+        ants_fixed = fixed.to_ants_image()
+        ants_moving = moving.to_ants_image()
 
         transforms = self._ants_inv_paths if invert else self._ants_fwd_paths
 
@@ -100,11 +99,7 @@ class TransformResource:
             interpolator=interpolation,
         )
 
-        return InMemoryVolumeResource(
-            array=warpedmovout.numpy(),
-            affine=fixed.get_affine(),
-            metadata=fixed.get_metadata(),
-        )
+        return InMemoryVolumeResource.from_ants_image(warpedmovout)
 
     def save(self, output_dir: PathLike) -> None:
         """Copies the underlying ANTs files to a permanent location."""
@@ -128,7 +123,7 @@ def register_volumes(
     Registers a moving volume to a fixed reference volume using ANTs.
 
     Args:
-        fixed: The reference volume (assumed to share the same affine as moving).
+        fixed: The reference volume.
         moving: The volume to be warped.
         type_of_transform: The transformation model (e.g., "SyN", "Rigid"). The full list of
             supported transforms can be found in the ANTs documentation.
@@ -139,20 +134,21 @@ def register_volumes(
         A tuple containing the registered volume and the transform object.
 
     """
+    fixed = fixed.load()
+    moving = moving.load()
 
     # Check input volume
     if fixed.get_array().ndim > 3 or moving.get_array().ndim > 3:
         error_message = "Input volume dimensions must be 2D or 3D."
         raise ValueError(error_message)
 
-    # TODO: Nibabel to ants conversion when ants is released
-    ants_fixed = ants.from_numpy(fixed.get_array())
-    ants_moving = ants.from_numpy(moving.get_array())
+    ants_fixed = fixed.to_ants_image()
+    ants_moving = moving.to_ants_image()
 
     # Convert masks to ants images if provided
-    ants_mask = ants.from_numpy(mask.get_array()) if mask is not None else None
+    ants_mask = mask.load().to_ants_image() if mask is not None else None
     ants_moving_mask = (
-        ants.from_numpy(moving_mask.get_array()) if moving_mask is not None else None
+        moving_mask.load().to_ants_image() if moving_mask is not None else None
     )
 
     # Check that the mask dimensions match the fixed/moving images
@@ -176,11 +172,7 @@ def register_volumes(
         error_msg = f"ANTs registration failed: {e!s}"
         raise RuntimeError(error_msg) from e
 
-    warpedmovout = InMemoryVolumeResource(
-        array=ants_result["warpedmovout"].numpy(),
-        affine=fixed.get_affine(),
-        metadata=fixed.get_metadata(),
-    )
+    warpedmovout = InMemoryVolumeResource.from_ants_image(ants_result["warpedmovout"])
 
     transform = TransformResource.initialize_from_ants(ants_result, ref_volume=fixed)
 
