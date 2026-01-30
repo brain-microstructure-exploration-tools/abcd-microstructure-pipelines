@@ -3,10 +3,9 @@ from __future__ import annotations
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import amico
-from numpy.typing import NDArray
 
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
@@ -154,7 +153,7 @@ class Noddi:
         )
 
     @property
-    def ndi(self) -> NDArray[Any]:
+    def ndi(self) -> VolumeResource:
         """Neurite Density Index (NDI) map as a 3D volume."""
         array = self.volume.get_array()[..., 0]
         return create_estimate_volume_resource(
@@ -162,7 +161,7 @@ class Noddi:
         )
 
     @property
-    def odi(self) -> NDArray[Any]:
+    def odi(self) -> VolumeResource:
         """Orientation Dispersion Index (ODI) map as a 3D volume."""
         array = self.volume.get_array()[..., 1]
         return create_estimate_volume_resource(
@@ -170,7 +169,7 @@ class Noddi:
         )
 
     @property
-    def fwf(self) -> NDArray[Any]:
+    def fwf(self) -> VolumeResource:
         """Free Water Fraction (FWF) map as a 3D volume."""
         array = self.volume.get_array()[..., 2]
         return create_estimate_volume_resource(
