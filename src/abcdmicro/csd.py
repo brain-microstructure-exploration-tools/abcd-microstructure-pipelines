@@ -45,21 +45,29 @@ def combine_response_functions(
         error_msg = "The list of responses cannot be empty."
         raise ValueError(error_msg)
 
-    num_coeffs = len(responses[0].get()[0])
+    # Loads responses if not in memory
+    responses = [r.load() for r in responses]
 
-    # Get all coefficients
+    # Get all coefficients and average signals
+    num_coeffs = len(responses[0].get()[0])
     all_coeffs = []
+    all_avg_signals = []
     for r in responses:
-        if len(r.get()[0]) != num_coeffs:
+        sh_coeffs, avg_signal = r.get()
+        if len(sh_coeffs) != num_coeffs:
             error_msg = "All response functions must have the same number of SH coefficients to be combined."
             raise ValueError(error_msg)
-        all_coeffs.append(r.get()[0])
+        all_coeffs.append(sh_coeffs)
+        all_avg_signals.append(avg_signal)
     all_coeffs = np.array(all_coeffs)
 
     # Based on the approach in MRtrix3 responsemean, we scale each subject's response function
     # so that the L=0 coefficient matches the group average L=0 coefficient.
     # Average L = 0 across subjects to compute scaling factors
     target_l0 = np.mean(all_coeffs[:, 0])
+    if np.any(all_coeffs[:, 0] == 0):
+        error_msg = "Response function with zero L=0 coefficient cannot be combined."
+        raise ValueError(error_msg)
     multipliers = target_l0 / all_coeffs[:, 0]
 
     # Scale each subject's entire row
@@ -69,7 +77,7 @@ def combine_response_functions(
     group_sh_coeffs = np.mean(normalized_coeffs, axis=0)
 
     # Average the S0 signal
-    avg_s0 = np.mean([r.get()[1] for r in responses])
+    avg_s0 = np.mean(all_avg_signals)
 
     return InMemoryResponseFunctionResource(
         sh_coeffs=group_sh_coeffs, avg_signal=avg_s0
