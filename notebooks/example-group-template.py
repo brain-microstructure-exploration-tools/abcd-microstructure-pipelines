@@ -20,10 +20,54 @@
 #
 # ## Pipeline overview
 #
+# 0. Download example data (3 subjects from OpenNeuro ds000221)
 # 1. Load per-subject DWI data and estimate FA / MD via DTI
 # 2. Build a single-metric population template
 # 3. Build a multi-metric population template
 # 4. Save templates to disk
+
+# %% [markdown]
+# ## 0. Download example data
+#
+# We download 3 subjects from the MPI-Leipzig Mind-Brain-Body dataset
+# ([OpenNeuro ds000221](https://openneuro.org/datasets/ds000221)). This dataset
+# contains 64-direction single-shell DWI data (b ~ 1000 s/mm²), which is
+# sufficient for DTI-based template construction.
+#
+# Total download size: ~250 MB for 3 subjects.
+
+# %%
+import subprocess
+import sys
+from pathlib import Path
+
+# Install openneuro-py if needed
+try:
+    import openneuro as on
+except ImportError:
+    print("Installing openneuro-py...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "openneuro-py"])
+    import openneuro as on
+
+# %%
+DATA_DIR = Path("example_data/ds000221")
+SUBJECTS = ["sub-010002", "sub-010005", "sub-010006"]
+
+# Download if not already present
+if not DATA_DIR.exists() or not any(DATA_DIR.iterdir()):
+    print("Downloading example data from OpenNeuro ds000221...")
+    print("This may take a few minutes (~250 MB total).")
+    on.download(
+        dataset="ds000221",
+        target_dir=str(DATA_DIR),
+        include=[
+            "dataset_description.json",
+            "participants.tsv",
+        ] + [f"{s}/ses-01/dwi/*" for s in SUBJECTS],
+    )
+    print("Download complete!")
+else:
+    print(f"Using existing data at {DATA_DIR.resolve()}")
 
 # %% [markdown]
 # ## 1. Load DWI data and compute per-subject FA / MD
@@ -33,11 +77,8 @@
 # template construction.
 
 # %%
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
-
 import tempfile
 
 from abcdmicro.dwi import Dwi
@@ -45,19 +86,10 @@ from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 from abcdmicro.masks import brain_extract_batch
 from abcdmicro.resource import VolumeResource
 
-# --- Fill in your DWI data paths here ---
-data_root = Path("...") # Root data directory
-subject_dirs = [
-    # Subject subdirectories; these should be individual directories that contain subdirectories with the pattern sub-*/ses-*/dwi
-    data_root/"...",
-    data_root/"...",
-    data_root/"...",
-]
-
-# Load all DWIs
+# Load all DWIs from the downloaded data
 dwis: list[Dwi] = []
-for d in subject_dirs:
-    dwi_dir = next(d.glob("sub-*/ses-*/dwi"))
+for subject in SUBJECTS:
+    dwi_dir = DATA_DIR / subject / "ses-01" / "dwi"
     dwi_nifti = next(dwi_dir.glob("*_dwi.nii.gz"))
     basename = dwi_nifti.name.removesuffix(".nii.gz")
 
@@ -66,6 +98,8 @@ for d in subject_dirs:
         FslBvalResource(dwi_dir / f"{basename}.bval"),
         FslBvecResource(dwi_dir / f"{basename}.bvec"),
     ).load())
+
+print(f"Loaded {len(dwis)} subjects")
 
 # Brain extraction in one batch (HD-BET initializes once)
 with tempfile.TemporaryDirectory() as tmpdir:
@@ -147,21 +181,27 @@ from abcdmicro.build_template import average_volumes, build_template
 initial_avg = average_volumes(fa_volumes)
 
 # %%
-fa_template = build_template(fa_volumes, initial_template=initial_avg, iterations=3)
+fa_template_1it = build_template(fa_volumes, initial_template=initial_avg, iterations=1)
+
+# %%
+fa_template_4it = build_template(fa_volumes, initial_template=fa_template_1it, iterations=3)
 
 # %% [markdown]
 # Compare the naive average with the registration-based template.
 
 # %%
 avg_arr = initial_avg.get_array()
-tmpl_arr = fa_template.get_array()
+tmpl_arr_1it = fa_template_1it.get_array()
+tmpl_arr_4it = fa_template_4it.get_array()
 mid = avg_arr.shape[2] // 2
 
-fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 axes[0].imshow(avg_arr[:, :, mid].T, cmap="hot", origin="lower", vmin=0)
 axes[0].set_title("Simple average (no registration)")
-axes[1].imshow(tmpl_arr[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
-axes[1].set_title("Population template (3 iterations)")
+axes[1].imshow(tmpl_arr_1it[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
+axes[1].set_title("Population template (1 iteration)")
+axes[2].imshow(tmpl_arr_4it[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
+axes[2].set_title("Population template (4 iterations)")
 for ax in axes:
     ax.axis("off")
 plt.tight_layout()
@@ -184,31 +224,49 @@ for fa, md in zip(fa_volumes, md_volumes):
     subject_list.append({"FA": fa, "MD": md})
 
 # %%
-multi_template = build_multi_metric_template(
+multi_template_1it = build_multi_metric_template(
+    subject_list,
+    weights={"FA": 1.0, "MD": 1.0},
+    iterations=1,
+)
+
+# %%
+multi_template_4it = build_multi_metric_template(
     subject_list,
     weights={"FA": 1.0, "MD": 1.0},
     iterations=3,
+    initial_template=multi_template_1it,
 )
 
 # %% [markdown]
 # Visualise the multi-metric template for each modality.
 
 # %%
-fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+fig, axes = plt.subplots(2, 2, figsize=(10, 8))
 
-fa_tmpl = multi_template["FA"].get_array()
-md_tmpl = multi_template["MD"].get_array()
-mid = fa_tmpl.shape[2] // 2
+fa_tmpl_1it = multi_template_1it["FA"].get_array()
+md_tmpl_1it = multi_template_1it["MD"].get_array()
+fa_tmpl_4it = multi_template_4it["FA"].get_array()
+md_tmpl_4it = multi_template_4it["MD"].get_array()
+mid = fa_tmpl_1it.shape[2] // 2
 
-im0 = axes[0].imshow(fa_tmpl[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
-axes[0].set_title("FA template")
-plt.colorbar(im0, ax=axes[0], fraction=0.046)
+im0 = axes[0,0].imshow(fa_tmpl_1it[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
+axes[0,0].set_title("FA template (1 iteration)")
+plt.colorbar(im0, ax=axes[0,0], fraction=0.046)
 
-im1 = axes[1].imshow(md_tmpl[:, :, mid].T, cmap="viridis", origin="lower", vmin=0, vmax=3e-3)
-axes[1].set_title("MD template")
-plt.colorbar(im1, ax=axes[1], fraction=0.046)
+im1 = axes[0,1].imshow(md_tmpl_1it[:, :, mid].T, cmap="viridis", origin="lower", vmin=0, vmax=3e-3)
+axes[0,1].set_title("MD template (1 iteration)")
+plt.colorbar(im1, ax=axes[0,1], fraction=0.046)
 
-for ax in axes:
+im2 = axes[1,0].imshow(fa_tmpl_4it[:, :, mid].T, cmap="hot", origin="lower", vmin=0, vmax=1)
+axes[1,0].set_title("FA template (4 iterations)")
+plt.colorbar(im2, ax=axes[1,0], fraction=0.046)
+
+im3 = axes[1,1].imshow(md_tmpl_4it[:, :, mid].T, cmap="viridis", origin="lower", vmin=0, vmax=3e-3)
+axes[1,1].set_title("MD template (4 iterations)")
+plt.colorbar(im3, ax=axes[1,1], fraction=0.046)
+
+for ax in axes.flatten():
     ax.axis("off")
 plt.suptitle("Multi-metric population templates")
 plt.tight_layout()
@@ -221,9 +279,9 @@ plt.show()
 output_dir = Path("output")
 output_dir.mkdir(exist_ok=True)
 
-NiftiVolumeResource.save(fa_template, output_dir / "fa_template.nii.gz")
+NiftiVolumeResource.save(fa_template_4it, output_dir / "fa_template.nii.gz")
 
-for name, vol in multi_template.items():
+for name, vol in multi_template_4it.items():
     NiftiVolumeResource.save(vol, output_dir / f"{name.lower()}_template_multi.nii.gz")
 
 print(f"Templates saved to {output_dir.resolve()}")
