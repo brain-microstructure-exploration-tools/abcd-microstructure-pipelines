@@ -20,6 +20,7 @@
 #
 # ## Pipeline overview
 #
+# 0. Download example data (Sherbrooke 3-shell from DIPY)
 # 1. Load DWI data
 # 2. Denoise
 # 3. Brain extraction
@@ -28,6 +29,25 @@
 # 6. CSD / Fiber Orientation Distributions
 # 7. TractSeg white matter tract segmentation
 # 8. Saving results to disk
+
+# %% [markdown]
+# ## 0. Download example data
+#
+# We use the Sherbrooke 3-shell HARDI dataset from DIPY, which provides
+# multi-shell diffusion data (b = 0, 1000, 2000, 3500 s/mm²) with 193 gradient
+# directions. Multi-shell data is required for NODDI estimation.
+#
+# The data is downloaded automatically on first run (~50 MB).
+
+# %%
+from dipy.data import fetch_sherbrooke_3shell
+
+# Download the dataset if not already present
+files, data_dir = fetch_sherbrooke_3shell()
+basename = "HARDI193"
+
+print(f"Data directory: {data_dir}")
+print(f"Files: {list(files.keys())}")
 
 # %% [markdown]
 # ## 1. Load DWI data
@@ -45,10 +65,7 @@ import numpy as np
 from abcdmicro.dwi import Dwi
 from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 
-# Point these to a BIDS-style DWI session directory containing
-# <basename>.nii.gz, <basename>.bval, and <basename>.bvec files.
-data_dir = Path("...")  # e.g. Path("/data/sub-XXX/ses-YYY/dwi")
-basename = "..."  # e.g. "sub-XXX_ses-YYY_run-01_dwi"
+data_dir = Path(data_dir)
 
 dwi = Dwi(
     NiftiVolumeResource(data_dir / f"{basename}.nii.gz"),
@@ -72,12 +89,12 @@ mean_b0_arr = mean_b0.get_array()
 mid_slice = vol.shape[2] // 2
 
 # %%
-dwi_idx = np.argmax(bvals)
+dwi_large_bval_idx = np.argmax(bvals)
 fig, axes = plt.subplots(1, 2, figsize=(10, 4))
 axes[0].imshow(mean_b0_arr[:, :, mid_slice].T, cmap="gray", origin="lower")
 axes[0].set_title("Mean b = 0")
-axes[1].imshow(vol[:, :, mid_slice, dwi_idx].T, cmap="gray", origin="lower")
-axes[1].set_title(f"b = {bvals[dwi_idx]:.0f}")
+axes[1].imshow(vol[:, :, mid_slice, dwi_large_bval_idx].T, cmap="gray", origin="lower")
+axes[1].set_title(f"b = {bvals[dwi_large_bval_idx]:.0f}")
 for ax in axes:
     ax.axis("off")
 plt.tight_layout()
@@ -94,15 +111,15 @@ plt.show()
 dwi_denoised = dwi.denoise()
 
 # %%
-orig = mean_b0_arr[:, :, mid_slice]
-denoised = dwi_denoised.compute_mean_b0().get_array()[:, :, mid_slice]
+orig = vol[:, :, mid_slice, dwi_large_bval_idx]
+denoised_large_bval = dwi_denoised.volume.get_array()[:, :, mid_slice, dwi_large_bval_idx]
 
 fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 axes[0].imshow(orig.T, cmap="gray", origin="lower")
 axes[0].set_title("Original")
-axes[1].imshow(denoised.T, cmap="gray", origin="lower")
+axes[1].imshow(denoised_large_bval.T, cmap="gray", origin="lower")
 axes[1].set_title("Denoised")
-im = axes[2].imshow((orig - denoised).T, cmap="bwr", origin="lower")
+im = axes[2].imshow((orig - denoised_large_bval).T, cmap="bwr", origin="lower")
 axes[2].set_title("Residual (noise removed)")
 plt.colorbar(im, ax=axes[2], fraction=0.046)
 for ax in axes:
@@ -132,6 +149,7 @@ sys.stdout = kernel._stdout
 
 # %%
 mask_arr = mask.get_array()
+denoised = dwi_denoised.compute_mean_b0().get_array()[:, :, mid_slice]
 print(f"Mask shape: {mask_arr.shape}, voxels in brain: {mask_arr.sum()}")
 
 fig, ax = plt.subplots(figsize=(5, 4))
