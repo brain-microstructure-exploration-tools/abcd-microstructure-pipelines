@@ -14,7 +14,10 @@ from abcdmicro.util import PathLike, normalize_path
 
 @dataclass()
 class TransformResource:
-    """A registration result"""
+    """A wrapper for ANTs registration results that simplifies viewing and
+    applying transforms. While the underlying transform files are always
+    stored on-disk, they remain in a temporary directory until explicitly
+    persisted via the save() method."""
 
     # Raw paths to ants output files
     _ants_fwd_paths: list[str]
@@ -101,15 +104,31 @@ class TransformResource:
 
         return InMemoryVolumeResource.from_ants_image(warpedmovout)
 
-    def save(self, output_dir: PathLike) -> None:
-        """Copies the underlying ANTs files to a permanent location."""
+    def save(self, output_dir: PathLike) -> TransformResource:
+        """Copies the underlying ANTs transformation files to a permanent directory
+        and returns a new TransformResource pointing to the saved locations"""
+
         path = normalize_path(output_dir)
         path.mkdir(parents=True, exist_ok=True)
 
+        copied_files = {}
+
+        def copy_file(p: str) -> str:
+            if p not in copied_files:
+                dest = path / Path(p).name
+                shutil.copy(p, dest)
+                copied_files[p] = dest
+            return str(copied_files[p])
+
         # Files get saved with default temp names from ANTs
-        all_paths = set(self._ants_fwd_paths + self._ants_inv_paths)
-        for p in all_paths:
-            shutil.copy(p, path / Path(p).name)
+        saved_fwd_paths = [copy_file(p) for p in self._ants_fwd_paths]
+        saved_inv_paths = [copy_file(p) for p in self._ants_inv_paths]
+
+        return TransformResource(
+            _ants_fwd_paths=saved_fwd_paths,
+            _ants_inv_paths=saved_inv_paths,
+            _ref_affine=self._ref_affine,
+        )
 
 
 def register_volumes(
