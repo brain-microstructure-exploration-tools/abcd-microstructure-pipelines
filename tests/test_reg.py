@@ -102,9 +102,10 @@ def test_register_volumes(dwi1: Dwi, dwi2: Dwi, tmp_path):
         invert=True,
     )
 
-    # Allclose fails because of interpolation differences and information loss
-    assert np.allclose(
-        applied_volume_invert.get_array().shape, moving_scalar_volume.get_array().shape
+    # Allclose on the array data fails because of interpolation differences and information loss
+    assert (
+        applied_volume_invert.get_array().shape
+        == moving_scalar_volume.get_array().shape
     )
 
     # Test with masks
