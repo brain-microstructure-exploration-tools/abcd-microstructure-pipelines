@@ -265,11 +265,11 @@ def test_build_multi_metric_template(
         )
 
 
-def test_average_volumes_does_not_modify_inputs():
+def test_average_volumes_does_not_modify_inputs(small_nifti_header):
     arr1 = np.random.default_rng(0).random((3, 4, 5))
     arr2 = np.random.default_rng(1).random((3, 4, 5))
-    vol1 = InMemoryVolumeResource(arr1, np.eye(4))
-    vol2 = InMemoryVolumeResource(arr2, np.eye(4))
+    vol1 = InMemoryVolumeResource(arr1, np.eye(4), metadata=dict(small_nifti_header))
+    vol2 = InMemoryVolumeResource(arr2, np.eye(4), metadata=dict(small_nifti_header))
 
     arr1_before = arr1.copy()
     arr2_before = arr2.copy()
