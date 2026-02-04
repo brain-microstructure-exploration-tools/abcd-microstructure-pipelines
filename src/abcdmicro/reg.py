@@ -111,18 +111,23 @@ class TransformResource:
         path = normalize_path(output_dir)
         path.mkdir(parents=True, exist_ok=True)
 
+        # Files get saved with default temp names from ANTs
         copied_files = {}
-
-        def copy_file(p: str) -> str:
+        saved_fwd_paths = []
+        for p in self._ants_fwd_paths:
             if p not in copied_files:
                 dest = path / Path(p).name
                 shutil.copy(p, dest)
                 copied_files[p] = dest
-            return str(copied_files[p])
+            saved_fwd_paths.append(str(copied_files[p]))
 
-        # Files get saved with default temp names from ANTs
-        saved_fwd_paths = [copy_file(p) for p in self._ants_fwd_paths]
-        saved_inv_paths = [copy_file(p) for p in self._ants_inv_paths]
+        saved_inv_paths = []
+        for p in self._ants_inv_paths:
+            if p not in copied_files:
+                dest = path / Path(p).name
+                shutil.copy(p, dest)
+                copied_files[p] = dest
+            saved_inv_paths.append(str(copied_files[p]))
 
         return TransformResource(
             _ants_fwd_paths=saved_fwd_paths,
