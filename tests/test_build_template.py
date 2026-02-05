@@ -61,8 +61,8 @@ def test_average_volumes(dwi1: Dwi, dwi2: Dwi):
     average_volume = average_volumes(volume_list)
     assert average_volume.get_array().shape == scalar_volume2.get_array().shape
 
-    # Test averaging
-    average_volume = average_volumes([scalar_volume1, scalar_volume1])
+    # Test averaging without normalization: average of a volume with itself should be itself
+    average_volume = average_volumes([scalar_volume1, scalar_volume1], normalize=False)
     assert np.allclose(average_volume.get_array(), scalar_volume1.get_array())
 
 
@@ -78,7 +78,7 @@ def test_update_template():
     aff.set_parameters(aff_params)
 
     # Dummy warp - shift by 5 in X dimension
-    warp_data = np.zeros((10, 10, 10, 1, 3))
+    warp_data = np.zeros((10, 10, 10, 3))
     warp_data[..., 0] = -5.0
     avg_warp = ants.from_numpy(warp_data, has_components=True)
 
@@ -130,6 +130,13 @@ def test_build_template(
     mock_run_ants_registration = mocker.patch(
         "ants.registration",
         return_value=mock_ants_registration_return_value,
+    )
+
+    avg_array = average_volume.get_array()
+    # Mock ants.apply_transforms (used in _update_template)
+    mocker.patch(
+        "ants.apply_transforms",
+        return_value=ants.from_numpy(avg_array),
     )
 
     # Mock template sharpening
@@ -243,6 +250,21 @@ def test_build_multi_metric_template(
             weights={"dummy_mod1": 1},
             iterations=n_iter,
         )
+
+
+def test_average_volumes_does_not_modify_inputs():
+    arr1 = np.random.default_rng(0).random((3, 4, 5))
+    arr2 = np.random.default_rng(1).random((3, 4, 5))
+    vol1 = InMemoryVolumeResource(arr1, np.eye(4))
+    vol2 = InMemoryVolumeResource(arr2, np.eye(4))
+
+    arr1_before = arr1.copy()
+    arr2_before = arr2.copy()
+
+    average_volumes([vol1, vol2])
+
+    np.testing.assert_array_equal(vol1.get_array(), arr1_before)
+    np.testing.assert_array_equal(vol2.get_array(), arr2_before)
 
 
 def test_invalid_inputs(dwi1: Dwi, dwi2: Dwi):

@@ -35,7 +35,7 @@ dependencies = [
   "dipy >=1.9",
   "pandas",
   "hd-bet == 2.0.1",
-  "dmri-amico == 2.1.0",
+  "dmri-amico == 2.1.1",
   # Required because older amico/setuptools dependency chain
   # imports backports.tarfile (can be removed if amico drops it)
   "backports.tarfile",
@@ -90,8 +90,8 @@ addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = [
   "error",
-  "ignore:pkg_resources is deprecated as an API", # accommodating AMICO till it is updated (matches both UserWarning and DeprecationWarning)
-  "ignore:Deprecated call to `pkg_resources", # accommodating AMICO till it is updated (matches both UserWarning and DeprecationWarning)
+  "ignore:pkg_resources is deprecated as an API", # accommodating tractseg till it is updated (matches both UserWarning and DeprecationWarning)
+  "ignore:Deprecated call to `pkg_resources", # accommodating tractseg till it is updated (matches both UserWarning and DeprecationWarning)
   "ignore:.*legacy descoteaux07 SH basis.*:PendingDeprecationWarning",
 ]
 log_cli_level = "INFO"
