@@ -11,7 +11,6 @@ import pytest
 from scipy.linalg import expm
 
 from abcdmicro.dwi import Dwi
-from abcdmicro.event import AbcdEvent
 from abcdmicro.io import NiftiVolumeResource
 from abcdmicro.noddi import Noddi
 from abcdmicro.resource import (
@@ -20,17 +19,6 @@ from abcdmicro.resource import (
     InMemoryVolumeResource,
 )
 from abcdmicro.util import deep_equal_allclose
-
-
-@pytest.fixture
-def abcd_event():
-    return AbcdEvent(
-        subject_id="NDAR_INV00U4FTRU",
-        eventname="baseline_year_1_arm_1",
-        image_download_path_in=Path("/this/is/a/path/for/images"),
-        tabular_data_path_in=Path("/this/is/a/path/for/tables"),
-        abcd_version="5.1",
-    )
 
 
 @pytest.fixture
@@ -58,10 +46,9 @@ def small_nifti_header():
 
 
 @pytest.fixture
-def dwi(abcd_event, volume_array, random_affine, small_nifti_header) -> Dwi:
+def dwi(volume_array, random_affine, small_nifti_header) -> Dwi:
     """An example in-memory Dwi"""
     return Dwi(
-        event=abcd_event,
         volume=InMemoryVolumeResource(
             array=volume_array, affine=random_affine, metadata=dict(small_nifti_header)
         ),
@@ -82,14 +69,13 @@ def dwi(abcd_event, volume_array, random_affine, small_nifti_header) -> Dwi:
 
 
 @pytest.fixture
-def dwi1(abcd_event, random_affine, small_nifti_header) -> Dwi:
+def dwi1(random_affine, small_nifti_header) -> Dwi:
     """An example in-memory Dwi with 6 volumes."""
     n_vols = 6
     rng = np.random.default_rng(4616)
     bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
     bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
     return Dwi(
-        event=abcd_event,
         volume=InMemoryVolumeResource(
             array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
             affine=random_affine,
@@ -104,14 +90,13 @@ def dwi1(abcd_event, random_affine, small_nifti_header) -> Dwi:
 
 
 @pytest.fixture
-def dwi2(abcd_event, random_affine, small_nifti_header) -> Dwi:
+def dwi2(random_affine, small_nifti_header) -> Dwi:
     """A second example in-memory Dwi with 4 volumes and metadata that matches that of dwi1."""
     n_vols = 4
     rng = np.random.default_rng(7816)
     bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
     bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
     return Dwi(
-        event=abcd_event,  # event, affine, and metadata matches dwi1
         volume=InMemoryVolumeResource(
             array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
             affine=random_affine,
@@ -126,14 +111,13 @@ def dwi2(abcd_event, random_affine, small_nifti_header) -> Dwi:
 
 
 @pytest.fixture
-def dwi3(abcd_event, random_affine, small_nifti_header) -> Dwi:
+def dwi3(random_affine, small_nifti_header) -> Dwi:
     """A n example in-memory Dwi with 6 volumes, 3 of which have b=0"""
     n_vols = 6
     rng = np.random.default_rng(7816)
     bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
     bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
     return Dwi(
-        event=abcd_event,
         volume=InMemoryVolumeResource(
             array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
             affine=random_affine,
@@ -145,14 +129,13 @@ def dwi3(abcd_event, random_affine, small_nifti_header) -> Dwi:
 
 
 @pytest.fixture
-def dwi4(abcd_event, random_affine, small_nifti_header) -> Dwi:
+def dwi4(random_affine, small_nifti_header) -> Dwi:
     """An example in-memory Dwi with 10 volumes."""
     n_vols = 10
     rng = np.random.default_rng(4616)
     bvec_array = rng.random(size=(n_vols, 3), dtype=np.float32)
     bvec_array = bvec_array / np.sqrt((bvec_array**2).sum(axis=1, keepdims=True))
     return Dwi(
-        event=abcd_event,
         volume=InMemoryVolumeResource(
             array=rng.random(size=(3, 4, 5, n_vols), dtype=np.float32),
             affine=random_affine,
@@ -222,7 +205,6 @@ def test_dwi_concatenate_singleton_list(dwi1: Dwi):
     """
     dwi_cat = Dwi.concatenate([dwi1])
 
-    assert dwi_cat.event == dwi1.event
     assert deep_equal_allclose(
         dwi_cat.volume.get_metadata(), dwi1.volume.get_metadata()
     )
@@ -240,7 +222,6 @@ def test_dwi_concatenate(dwi1: Dwi, dwi2: Dwi):
     dwi_cat = Dwi.concatenate(dwi_list)
 
     # 1. Check metadata from the first DWI is used
-    assert dwi_cat.event == dwi1.event
     assert np.allclose(dwi_cat.volume.get_affine(), dwi1.volume.get_affine())
     metadata, metadata1 = dwi_cat.volume.get_metadata(), dwi1.volume.get_metadata()
     assert all(
@@ -269,17 +250,6 @@ def test_dwi_concatenate(dwi1: Dwi, dwi2: Dwi):
     expected_bvec_data = np.concatenate([dwi1.bvec.get(), dwi2.bvec.get()], axis=0)
     assert dwi_cat.bvec.get().shape == (10, 3)
     assert np.allclose(dwi_cat.bvec.get(), expected_bvec_data)
-
-
-def test_dwi_concatenate_event_mismatch(dwi1: Dwi, dwi2: Dwi, caplog):
-    """Tests that a warning is logged for mismatched events."""
-    # create a new event for the second DWI
-    dwi2.event = AbcdEvent("other_subject", "other_event", Path("/"), Path("/"), "5.1")
-
-    with caplog.at_level(logging.WARNING):
-        Dwi.concatenate([dwi1, dwi2])
-
-    assert "Event mismatch" in caplog.text
 
 
 def test_dwi_concatenate_affine_mismatch(dwi1: Dwi, dwi2: Dwi, caplog):

@@ -4,7 +4,6 @@ import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import dipy.core.gradients
 import numpy as np
@@ -29,13 +28,10 @@ from abcdmicro.util import (
     update_volume_metadata,
 )
 
-if TYPE_CHECKING:
-    from abcdmicro.event import AbcdEvent
-
 
 @dataclass
 class Dwi:
-    """An ABCD diffusion weighted image."""
+    """A diffusion weighted image."""
 
     volume: VolumeResource
     """ The DWI image volume.
@@ -49,9 +45,6 @@ class Dwi:
     bvec: BvecResource
     """The DWI b-vectors"""
 
-    event: None | AbcdEvent = None
-    """The ABCD event associated with this DWI. If not provided then this is an anonymous DWI."""
-
     def __post_init__(self) -> None:
         # Check that b-vectors are unit vectors whenever the b-value isn't 0
         bvecs_to_check = self.bvec.get()[self.bval.get() != 0]
@@ -62,7 +55,6 @@ class Dwi:
     def load(self) -> Dwi:
         """Load any on-disk resources into memory and return a Dwi with all loadable resources loaded."""
         return Dwi(
-            event=self.event,
             volume=self.volume.load(),
             bval=self.bval.load(),
             bvec=self.bvec.load(),
@@ -83,7 +75,6 @@ class Dwi:
             raise ValueError(msg)
         path.mkdir(exist_ok=True, parents=True)
         return Dwi(
-            event=self.event,
             volume=NiftiVolumeResource.save(self.volume, path / f"{basename}.nii.gz"),
             bval=FslBvalResource.save(self.bval, path / f"{basename}.bval"),
             bvec=FslBvecResource.save(self.bvec, path / f"{basename}.bvec"),
@@ -119,10 +110,7 @@ class Dwi:
     def concatenate(dwis: list[Dwi]) -> Dwi:
         """Concatenate a list of `Dwi`s into a single (loaded) DWI.
 
-        The event of the first `Dwi` in the list will be the event of the created Dwi,
-        however a warning is logged if there is a mismatch of events among the `Dwi`s.
-
-        Similarly, the affine and metadata of the first `Dwi` is used to concatenate volumes.
+        The affine and metadata of the first `Dwi` in the list will be used to concatenate volumes.
         """
         if len(dwis) == 0:
             msg = "Cannot concatenate an empty list of DWIs."
@@ -133,17 +121,11 @@ class Dwi:
 
         # use the first DWI as the reference for metadata
         ref_dwi = loaded_dwis[0]
-        ref_event = ref_dwi.event
         ref_affine = ref_dwi.volume.get_affine()
         ref_metadata = ref_dwi.volume.get_metadata()
 
         # check for metadata consistency across all DWIs and log warnings
         for i, dwi in enumerate(loaded_dwis[1:], start=1):
-            if dwi.event != ref_event:
-                logging.warning(
-                    "Event mismatch: Using event from DWI 0, but DWI %s has a different event.",
-                    i,
-                )
             if not np.allclose(dwi.volume.get_affine(), ref_affine):
                 logging.warning(
                     "Affine mismatch: Using affine from DWI 0, but DWI %s has a different affine.",
@@ -210,7 +192,6 @@ class Dwi:
 
         # return a new Dwi object with the concatenated, in-memory data.
         return Dwi(
-            event=ref_event,
             volume=concatenated_volume,
             bval=concatenated_bval,
             bvec=concatenated_bvec,
@@ -222,7 +203,6 @@ class Dwi:
         denoised_volume = denoise_dwi(self)
 
         return Dwi(
-            event=self.event,
             volume=denoised_volume,
             bval=self.bval,
             bvec=self.bvec,
