@@ -8,8 +8,9 @@ name = "abcd-microstructure-pipelines"
 authors = [
   { name = "Ebrahim Ebrahim", email = "ebrahim.ebrahim@kitware.com" },
   { name = "David Allemang", email = "david.allemang@kitware.com" },
+  { name = "Sadhana Ravikumar", email = "sadhana.ravikumar@kitware.com" }
 ]
-description = "Processing pipelines to extract brain microstructure from ABCD Study dMRI"
+description = "Processing pipelines to extract brain microstructure from diffusion MRI"
 readme = "README.md"
 license.file = "LICENSE"
 requires-python = ">=3.10"
