@@ -90,8 +90,6 @@ addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = [
   "error",
-  "ignore:pkg_resources is deprecated as an API", # accommodating tractseg till it is updated (matches both UserWarning and DeprecationWarning)
-  "ignore:Deprecated call to `pkg_resources", # accommodating tractseg till it is updated (matches both UserWarning and DeprecationWarning)
   "ignore:.*legacy descoteaux07 SH basis.*:PendingDeprecationWarning",
 ]
 log_cli_level = "INFO"
