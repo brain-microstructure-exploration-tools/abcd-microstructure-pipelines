@@ -179,7 +179,7 @@ def register_volumes(
         fixed=ants_fixed,
         moving=ants_moving,
         mask=ants_mask,
-        movingmask=ants_moving_mask,
+        moving_mask=ants_moving_mask,
         type_of_transform=type_of_transform,
     )
 
