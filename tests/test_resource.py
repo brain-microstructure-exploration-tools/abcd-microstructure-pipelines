@@ -7,7 +7,7 @@ from dipy.core.gradients import gradient_table
 from dipy.reconst.csdeconv import AxSymShResponse, ConstrainedSphericalDeconvModel
 from scipy.linalg import expm
 
-from abcdmicro.resource import (
+from kwneuro.resource import (
     BvalResource,
     BvecResource,
     InMemoryBvalResource,

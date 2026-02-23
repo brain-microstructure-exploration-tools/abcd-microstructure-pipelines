@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from abcdmicro.io import NiftiVolumeResource
-from abcdmicro.util import PathLike, normalize_path
+from kwneuro.io import NiftiVolumeResource
+from kwneuro.util import PathLike, normalize_path
 
 if TYPE_CHECKING:
-    from abcdmicro.dwi import Dwi
+    from kwneuro.dwi import Dwi
 
 
 def _run_hd_bet(
@@ -41,7 +41,7 @@ def _run_hd_bet(
         not Path(path).name.endswith(".nii.gz") for path in hd_bet_input + hd_bet_output
     ):
         logging.warning(
-            "abcdmicro HD-BET runner has only been tested with *.nii.gz files. Masking might not work."
+            "kwneuro HD-BET runner has only been tested with *.nii.gz files. Masking might not work."
         )
     if any(Path(path).exists() for path in hd_bet_output):
         logging.warning(
@@ -54,10 +54,10 @@ def _run_hd_bet(
 
     logging.debug("Loading HD_BET")
     # don't import till now since it takes time to initialize.
-    from HD_BET.checkpoint_download import (  # pylint: disable=import-outside-toplevel # noqa: PLC0415
+    from HD_BET.checkpoint_download import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415
         maybe_download_parameters,
     )
-    from HD_BET.hd_bet_prediction import (  # pylint: disable=import-outside-toplevel # noqa: PLC0415
+    from HD_BET.hd_bet_prediction import (  # pylint: disable=import-outside-toplevel  # noqa: PLC0415
         get_hdbet_predictor,
     )
 

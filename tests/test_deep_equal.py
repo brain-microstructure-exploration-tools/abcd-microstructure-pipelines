@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from abcdmicro.util import deep_equal_allclose
+from kwneuro.util import deep_equal_allclose
 
 # --- Tests for Primitive Types ---
 

@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 
 import dipy.reconst.dti
 
-from abcdmicro.io import NiftiVolumeResource
-from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
-from abcdmicro.util import PathLike, update_volume_metadata
+from kwneuro.io import NiftiVolumeResource
+from kwneuro.resource import InMemoryVolumeResource, VolumeResource
+from kwneuro.util import PathLike, update_volume_metadata
 
 if TYPE_CHECKING:
-    from abcdmicro.dwi import Dwi
+    from kwneuro.dwi import Dwi
 
 
 @dataclass

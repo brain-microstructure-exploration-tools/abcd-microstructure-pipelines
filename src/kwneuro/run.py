@@ -1,5 +1,5 @@
 """
-.. click:: abcdmicro.run:gen_masks
+.. click:: kwneuro.run:gen_masks
     :prog: gen_masks
     :nested: short
 """
@@ -12,9 +12,9 @@ from pathlib import Path
 
 import click
 
-from abcdmicro import masks
-from abcdmicro.dwi import Dwi
-from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from kwneuro import masks
+from kwneuro.dwi import Dwi
+from kwneuro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "WARN"))
 
@@ -43,7 +43,7 @@ def gen_masks(inputs: Path, outputs: Path) -> None:
 
     Produces output files: ``<ID>_mask.nii.gz``
     \f
-    See :func:`abcdmicro.masks.brain_extract_batch` for details.
+    See :func:`kwneuro.masks.brain_extract_batch` for details.
     """
 
     cases: list[tuple[Dwi, Path]] = []

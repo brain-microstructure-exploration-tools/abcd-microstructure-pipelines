@@ -14,15 +14,15 @@ from dipy.reconst.csdeconv import (
 )
 from dipy.reconst.shm import convert_sh_descoteaux_tournier
 
-from abcdmicro.resource import (
+from kwneuro.resource import (
     InMemoryResponseFunctionResource,
     ResponseFunctionResource,
     VolumeResource,
 )
-from abcdmicro.util import create_estimate_volume_resource
+from kwneuro.util import create_estimate_volume_resource
 
 if TYPE_CHECKING:
-    from abcdmicro.dwi import Dwi
+    from kwneuro.dwi import Dwi
 
 
 def combine_response_functions(

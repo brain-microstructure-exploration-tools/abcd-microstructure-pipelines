@@ -12,7 +12,7 @@ from dipy.io.image import save_nifti
 from nibabel.nifti1 import Nifti1Header
 from numpy.typing import NDArray
 
-from abcdmicro.resource import (
+from kwneuro.resource import (
     BvalResource,
     BvecResource,
     InMemoryBvalResource,
@@ -22,7 +22,7 @@ from abcdmicro.resource import (
     ResponseFunctionResource,
     VolumeResource,
 )
-from abcdmicro.util import PathLike, normalize_path
+from kwneuro.util import PathLike, normalize_path
 
 if TYPE_CHECKING:
     from dipy.reconst.csdeconv import AxSymShResponse

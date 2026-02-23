@@ -9,7 +9,7 @@ import numpy as np
 from nibabel.nifti1 import Nifti1Header
 from numpy.typing import NDArray
 
-from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
+from kwneuro.resource import InMemoryVolumeResource, VolumeResource
 
 PathLike = Path | str
 

@@ -4,14 +4,14 @@ import numpy as np
 import pytest
 import scipy.linalg
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.resource import (
+from kwneuro.dwi import Dwi
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryResponseFunctionResource,
     InMemoryVolumeResource,
 )
-from abcdmicro.tractseg import extract_tractseg
+from kwneuro.tractseg import extract_tractseg
 
 
 @pytest.fixture
@@ -71,13 +71,13 @@ def test_tractseg(
 
     mock_csd_peaks_result = (csd_peak_dir, csd_peak_value)
     mocker_csd_peaks = mocker.patch(
-        "abcdmicro.tractseg.compute_csd_peaks", return_value=mock_csd_peaks_result
+        "kwneuro.tractseg.compute_csd_peaks", return_value=mock_csd_peaks_result
     )
 
     # Mock tractseg output
     mock_tractseg_output = np.ones((*vol_shape, 72))
     mocker_run_tract_seg = mocker.patch(
-        "abcdmicro.tractseg.run_tractseg", return_value=mock_tractseg_output
+        "kwneuro.tractseg.run_tractseg", return_value=mock_tractseg_output
     )
 
     response = None if response_is_none else response_function

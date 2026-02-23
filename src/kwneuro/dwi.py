@@ -8,12 +8,12 @@ from pathlib import Path
 import dipy.core.gradients
 import numpy as np
 
-from abcdmicro.denoise import denoise_dwi
-from abcdmicro.dti import Dti
-from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
-from abcdmicro.masks import brain_extract_single
-from abcdmicro.noddi import Noddi
-from abcdmicro.resource import (
+from kwneuro.denoise import denoise_dwi
+from kwneuro.dti import Dti
+from kwneuro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from kwneuro.masks import brain_extract_single
+from kwneuro.noddi import Noddi
+from kwneuro.resource import (
     BvalResource,
     BvecResource,
     InMemoryBvalResource,
@@ -21,7 +21,7 @@ from abcdmicro.resource import (
     InMemoryVolumeResource,
     VolumeResource,
 )
-from abcdmicro.util import (
+from kwneuro.util import (
     PathLike,
     deep_equal_allclose,
     normalize_path,
@@ -211,7 +211,7 @@ class Dwi:
     def extract_brain(self) -> InMemoryVolumeResource:
         """Extract brain mask. This is meant to be convenient rather than efficient.
         Using this in a loop could result in unnecessary repetition of file I/O operations.
-        For efficiency, see `abcdmicro.masks.brain_extract_batch`.
+        For efficiency, see `kwneuro.masks.brain_extract_batch`.
         """
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "brain_mask.nii.gz"

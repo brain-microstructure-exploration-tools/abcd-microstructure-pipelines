@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 
 from tractseg.python_api import run_tractseg
 
-from abcdmicro.csd import combine_csd_peaks_to_vector_volume, compute_csd_peaks
-from abcdmicro.resource import ResponseFunctionResource, VolumeResource
-from abcdmicro.util import create_estimate_volume_resource
+from kwneuro.csd import combine_csd_peaks_to_vector_volume, compute_csd_peaks
+from kwneuro.resource import ResponseFunctionResource, VolumeResource
+from kwneuro.util import create_estimate_volume_resource
 
 if TYPE_CHECKING:
-    from abcdmicro.dwi import Dwi
+    from kwneuro.dwi import Dwi
 
 
 def extract_tractseg(

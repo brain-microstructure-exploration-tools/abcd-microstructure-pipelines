@@ -1,4 +1,4 @@
-# abcd-microstructure-pipelines
+# kwneuro
 
 ```{toctree}
 :maxdepth: 2

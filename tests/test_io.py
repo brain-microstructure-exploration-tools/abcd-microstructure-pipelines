@@ -8,13 +8,13 @@ import pytest
 from dipy.io.image import save_nifti
 from scipy.linalg import expm
 
-from abcdmicro.io import (
+from kwneuro.io import (
     FslBvalResource,
     FslBvecResource,
     JsonResponseFunctionResource,
     NiftiVolumeResource,
 )
-from abcdmicro.resource import (
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryResponseFunctionResource,
@@ -62,7 +62,7 @@ def random_affine() -> np.ndarray:
 @pytest.fixture
 def small_nifti_header():
     hdr = nib.Nifti1Header()
-    hdr["descrip"] = b"an abcdmicro unit test header description"
+    hdr["descrip"] = b"an kwneuro unit test header description"
     return hdr
 
 

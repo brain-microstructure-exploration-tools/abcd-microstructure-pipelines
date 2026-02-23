@@ -4,11 +4,11 @@ from typing import TYPE_CHECKING
 
 from dipy.denoise.patch2self import patch2self
 
-from abcdmicro.resource import InMemoryVolumeResource
-from abcdmicro.util import update_volume_metadata
+from kwneuro.resource import InMemoryVolumeResource
+from kwneuro.util import update_volume_metadata
 
 if TYPE_CHECKING:
-    from abcdmicro.dwi import Dwi
+    from kwneuro.dwi import Dwi
 
 
 def denoise_dwi(dwi: Dwi) -> InMemoryVolumeResource:
