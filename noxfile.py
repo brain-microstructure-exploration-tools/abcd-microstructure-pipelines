@@ -30,7 +30,7 @@ def pylint(session: nox.Session) -> None:
     # This needs to be installed into the package environment, and is slower
     # than a pre-commit check
     session.install(".", "pylint")
-    session.run("pylint", "abcdmicro", *session.posargs)
+    session.run("pylint", "kwneuro", *session.posargs)
 
 
 @nox.session

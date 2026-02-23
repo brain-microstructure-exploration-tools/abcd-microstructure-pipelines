@@ -10,15 +10,15 @@ import numpy as np
 import pytest
 from scipy.linalg import expm
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.io import NiftiVolumeResource
-from abcdmicro.noddi import Noddi
-from abcdmicro.resource import (
+from kwneuro.dwi import Dwi
+from kwneuro.io import NiftiVolumeResource
+from kwneuro.noddi import Noddi
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryVolumeResource,
 )
-from abcdmicro.util import deep_equal_allclose
+from kwneuro.util import deep_equal_allclose
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def random_affine() -> np.ndarray:
 @pytest.fixture
 def small_nifti_header():
     hdr = nib.Nifti1Header()
-    hdr["descrip"] = b"an abcdmicro unit test header description"
+    hdr["descrip"] = b"an kwneuro unit test header description"
     return hdr
 
 
@@ -356,7 +356,7 @@ def test_compute_b0_mean(dwi3: Dwi):
 
 
 def test_extract_brain(dwi3: Dwi, random_affine: np.ndarray, mocker):
-    """Test that calling brain_extract method calls and appropriately uses the brain masking utility in abcdmicro.masks"""
+    """Test that calling brain_extract method calls and appropriately uses the brain masking utility in kwneuro.masks"""
     with tempfile.TemporaryDirectory() as work_dir:
         # Mocking of brain_extract_single
         mask_path = Path(work_dir) / "blah.nii"
@@ -366,7 +366,7 @@ def test_extract_brain(dwi3: Dwi, random_affine: np.ndarray, mocker):
         )
         mask_on_disk = NiftiVolumeResource.save(mask_in_memory, mask_path)
         mock_brain_extract_single = mocker.patch(
-            "abcdmicro.dwi.brain_extract_single",
+            "kwneuro.dwi.brain_extract_single",
             return_value=mask_on_disk,
         )
 
@@ -378,7 +378,7 @@ def test_extract_brain(dwi3: Dwi, random_affine: np.ndarray, mocker):
 
 
 def test_dwi_denoise(dwi4: Dwi):
-    """Test that calling the denoise method calls and appropriately uses the denoising utility in abcdmicro.denoise
+    """Test that calling the denoise method calls and appropriately uses the denoising utility in kwneuro.denoise
     Patch2self issues a warning if the input dwi has less than 10 volumes."""
 
     denoised = dwi4.denoise()
@@ -395,7 +395,7 @@ def test_dwi_denoise(dwi4: Dwi):
 
 
 def test_estimate_noddi(dwi3: Dwi, mocker, tmp_path: Path, random_affine: np.ndarray):
-    """Test that calling compute_noddi calls and appropriately uses the NODDI fitting utility in abcdmicro.noddi"""
+    """Test that calling compute_noddi calls and appropriately uses the NODDI fitting utility in kwneuro.noddi"""
 
     # Setup mocker
     rng = np.random.default_rng(18653)
@@ -430,7 +430,7 @@ def test_estimate_noddi(dwi3: Dwi, mocker, tmp_path: Path, random_affine: np.nda
 
 
 def test_estimate_dti(dwi3: Dwi):
-    """Test that calling estimate_dti calls and appropriately uses the DTI fitting utility in abcdmicro.dti"""
+    """Test that calling estimate_dti calls and appropriately uses the DTI fitting utility in kwneuro.dti"""
     dti = dwi3.estimate_dti()
     assert dwi3.volume.get_array().shape[3] == 6
     assert np.allclose(dti.volume.get_affine(), dwi3.volume.get_affine())

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import importlib.metadata
 
-import abcdmicro as m
+import kwneuro as m
 
 
 def test_version():
-    assert importlib.metadata.version("abcd-microstructure-pipelines") == m.__version__
+    assert importlib.metadata.version("kwneuro") == m.__version__

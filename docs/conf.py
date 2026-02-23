@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import importlib.metadata
 
-project = "abcd-microstructure-pipelines"
+project = "kwneuro"
 copyright = "2024, Kitware"
-author = "Ebrahim Ebrahim, David Allemang"
-version = release = importlib.metadata.version("abcd-microstructure-pipelines")
+author = "Ebrahim Ebrahim, Sadhana Ravikumar, David Allemang"
+version = release = importlib.metadata.version("kwneuro")
 
 extensions = [
     "myst_parser",

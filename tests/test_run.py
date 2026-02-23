@@ -7,13 +7,13 @@ import numpy as np
 import pytest
 from click.testing import CliRunner
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.resource import (
+from kwneuro.dwi import Dwi
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryVolumeResource,
 )
-from abcdmicro.run import gen_masks
+from kwneuro.run import gen_masks
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def dwi(volume_array) -> Dwi:
 
 def test_gen_masks(mocker, dwi):
     runner = CliRunner()
-    mock_brain_extract_batch = mocker.patch("abcdmicro.masks.brain_extract_batch")
+    mock_brain_extract_batch = mocker.patch("kwneuro.masks.brain_extract_batch")
     with tempfile.TemporaryDirectory() as work_dir:
         input_dir = Path(work_dir) / "inputs"
         output_dir = Path(work_dir) / "outputs"

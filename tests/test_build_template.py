@@ -9,14 +9,14 @@ import numpy as np
 import pytest
 from ants.core import ANTsImage
 
-from abcdmicro.build_template import (
+from kwneuro.build_template import (
     _update_template,
     average_volumes,
     build_multi_metric_template,
     build_template,
 )
-from abcdmicro.dwi import Dwi
-from abcdmicro.resource import (
+from kwneuro.dwi import Dwi
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryVolumeResource,
@@ -27,7 +27,7 @@ from abcdmicro.resource import (
 @pytest.fixture
 def small_nifti_header():
     hdr = nib.Nifti1Header()
-    hdr["descrip"] = b"an abcdmicro unit test header description"
+    hdr["descrip"] = b"a kwneuro unit test header description"
     hdr.set_xyzt_units(xyz="mm")
     return hdr
 

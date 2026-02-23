@@ -1,6 +1,6 @@
 # Notebooks
 
-Example notebooks demonstrating `abcdmicro` pipeline usage. These are stored as
+Example notebooks demonstrating `kwneuro` pipeline usage. These are stored as
 percent-format Python scripts (compatible with Jupytext) and are excluded from
 CI linting.
 

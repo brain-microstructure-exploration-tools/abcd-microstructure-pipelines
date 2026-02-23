@@ -7,14 +7,14 @@ import pytest
 import scipy.linalg
 from dipy.direction.peaks import PeaksAndMetrics
 
-from abcdmicro.csd import (
+from kwneuro.csd import (
     combine_csd_peaks_to_vector_volume,
     combine_response_functions,
     compute_csd_fods,
     compute_csd_peaks,
 )
-from abcdmicro.dwi import Dwi
-from abcdmicro.resource import (
+from kwneuro.dwi import Dwi
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryResponseFunctionResource,
@@ -62,7 +62,7 @@ def mock_mask_for_response(mocker, dwi_data_small_random: Dwi) -> Any:
     vol = dwi_data_small_random.volume
     mask_for_response = np.ones(vol.get_array().shape[:-1], dtype=int)
     return mocker.patch(
-        "abcdmicro.csd.mask_for_response_ssst",
+        "kwneuro.csd.mask_for_response_ssst",
         return_value=mask_for_response,
     )
 
@@ -70,7 +70,7 @@ def mock_mask_for_response(mocker, dwi_data_small_random: Dwi) -> Any:
 def mock_response_from_mask(mocker) -> Any:
     response_tensor = (np.array([0.00139919, 0.0003007, 0.0003007]), 416)
     return mocker.patch(
-        "abcdmicro.csd.response_from_mask_ssst",
+        "kwneuro.csd.response_from_mask_ssst",
         return_value=(response_tensor, 0.2),
     )
 
@@ -96,7 +96,7 @@ def test_csd_peaks(
     csd_peaks_mock.peak_values = peak_value_data
     csd_peaks_mock.peak_dirs = peak_dir_data
     mocker_csd_peaks = mocker.patch(
-        "abcdmicro.csd.peaks_from_model", return_value=csd_peaks_mock
+        "kwneuro.csd.peaks_from_model", return_value=csd_peaks_mock
     )
 
     # Patch estimate_response_function
@@ -105,18 +105,18 @@ def test_csd_peaks(
     mock_res_mask = mock_response_from_mask(mocker)
     mock_compute_mask = mock_mask_for_response(mocker, dwi_data_small_random)
     mock_estimate_response = mocker.patch(
-        "abcdmicro.csd.InMemoryResponseFunctionResource.from_prolate_tensor",
+        "kwneuro.csd.InMemoryResponseFunctionResource.from_prolate_tensor",
         return_value=response_function,
     )
 
     # Mock CSD
     mock_csd_model = mocker.patch(
-        "abcdmicro.csd.ConstrainedSphericalDeconvModel",
+        "kwneuro.csd.ConstrainedSphericalDeconvModel",
         return_value=mocker.Mock(),
     )
 
     mock_gradient_table = mocker.patch(
-        "abcdmicro.csd.gradient_table",
+        "kwneuro.csd.gradient_table",
         return_value=mocker.Mock(),
     )
 
@@ -184,7 +184,7 @@ def test_compute_csd_fods(
     mock_res_mask = mock_response_from_mask(mocker)
     mock_compute_mask = mock_mask_for_response(mocker, dwi_data_small_random)
     mock_estimate_response = mocker.patch(
-        "abcdmicro.csd.InMemoryResponseFunctionResource.from_prolate_tensor",
+        "kwneuro.csd.InMemoryResponseFunctionResource.from_prolate_tensor",
         return_value=response_function,
     )
 
@@ -197,12 +197,12 @@ def test_compute_csd_fods(
     mock_csd_model_instance = mocker.Mock()
     mock_csd_model_instance.fit.return_value = mock_csd_fit
     mock_csd_model = mocker.patch(
-        "abcdmicro.csd.ConstrainedSphericalDeconvModel",
+        "kwneuro.csd.ConstrainedSphericalDeconvModel",
         return_value=mock_csd_model_instance,
     )
 
     mock_gradient_table = mocker.patch(
-        "abcdmicro.csd.gradient_table",
+        "kwneuro.csd.gradient_table",
         return_value=mocker.Mock(),
     )
 

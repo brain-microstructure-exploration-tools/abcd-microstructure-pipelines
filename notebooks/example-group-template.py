@@ -13,10 +13,10 @@
 # ---
 
 # %% [markdown]
-# # abcdmicro: Group Registration and Population Template Construction
+# # kwneuro: Group Registration and Population Template Construction
 #
 # This notebook demonstrates how to build population-level templates from
-# individual subject volumes using the `abcdmicro` registration tools.
+# individual subject volumes using the `kwneuro` registration tools.
 #
 # ## Pipeline overview
 #
@@ -81,10 +81,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tempfile
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
-from abcdmicro.masks import brain_extract_batch
-from abcdmicro.resource import VolumeResource
+from kwneuro.dwi import Dwi
+from kwneuro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from kwneuro.masks import brain_extract_batch
+from kwneuro.resource import VolumeResource
 
 # Load all DWIs from the downloaded data
 dwis: list[Dwi] = []
@@ -176,7 +176,7 @@ plt.show()
 # The initial template is the simple voxel-wise average (no registration).
 
 # %%
-from abcdmicro.build_template import average_volumes, build_template
+from kwneuro.build_template import average_volumes, build_template
 
 initial_avg = average_volumes(fa_volumes)
 
@@ -217,7 +217,7 @@ plt.show()
 # Each subject is passed as a dictionary mapping modality names to volumes.
 
 # %%
-from abcdmicro.build_template import build_multi_metric_template
+from kwneuro.build_template import build_multi_metric_template
 
 subject_list = []
 for fa, md in zip(fa_volumes, md_volumes):

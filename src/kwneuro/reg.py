@@ -6,8 +6,8 @@ from pathlib import Path
 
 import ants
 
-from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
-from abcdmicro.util import PathLike, normalize_path
+from kwneuro.resource import InMemoryVolumeResource, VolumeResource
+from kwneuro.util import PathLike, normalize_path
 
 
 @dataclass()

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "abcd-microstructure-pipelines"
+name = "kwneuro"
 authors = [
   { name = "Ebrahim Ebrahim", email = "ebrahim.ebrahim@kitware.com" },
-  { name = "David Allemang", email = "david.allemang@kitware.com" },
-  { name = "Sadhana Ravikumar", email = "sadhana.ravikumar@kitware.com" }
+  { name = "Sadhana Ravikumar", email = "sadhana.ravikumar@kitware.com" },
+  { name = "David Allemang", email = "david.allemang@kitware.com" }
 ]
 description = "Processing pipelines to extract brain microstructure from diffusion MRI"
 readme = "README.md"
@@ -67,22 +67,22 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines"
-"Bug Tracker" = "https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/issues"
-Discussions = "https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/discussions"
-Changelog = "https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/releases"
+Homepage = "https://github.com/brain-microstructure-exploration-tools/kwneuro"
+"Bug Tracker" = "https://github.com/brain-microstructure-exploration-tools/kwneuro/issues"
+Discussions = "https://github.com/brain-microstructure-exploration-tools/kwneuro/discussions"
+Changelog = "https://github.com/brain-microstructure-exploration-tools/kwneuro/releases"
 
 [project.scripts]
-gen_masks = "abcdmicro.run:gen_masks"
+gen_masks = "kwneuro.run:gen_masks"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.dynamic]
-version = { attr = "abcdmicro.__version__" }
+version = { attr = "kwneuro.__version__" }
 
 [tool.setuptools_scm]
-write_to = "src/abcdmicro/_version.py"
+write_to = "src/kwneuro/_version.py"
 
 
 [tool.pytest.ini_options]
@@ -100,7 +100,7 @@ testpaths = [
 
 
 [tool.coverage]
-run.source = ["abcdmicro"]
+run.source = ["kwneuro"]
 report.exclude_also = [
   '\.\.\.',
   'if typing.TYPE_CHECKING:',
@@ -117,7 +117,7 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 [[tool.mypy.overrides]]
-module = "abcdmicro.*"
+module = "kwneuro.*"
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 
@@ -157,7 +157,7 @@ ignore = [
 ]
 isort.required-imports = ["from __future__ import annotations"]
 # Uncomment if using a _compat.typing backport
-# typing-modules = ["abcdmicro._compat.typing"]
+# typing-modules = ["kwneuro._compat.typing"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["T20"]

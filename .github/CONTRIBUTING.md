@@ -72,7 +72,7 @@ pytest
 Use pytest-cov to generate coverage reports:
 
 ```bash
-pytest --cov=abcd-microstructure-pipelines
+pytest --cov=kwneuro
 ```
 
 # Building docs

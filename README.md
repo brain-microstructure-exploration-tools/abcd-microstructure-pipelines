@@ -1,4 +1,4 @@
-# abcd-microstructure-pipelines
+# kwneuro
 
 [![Actions Status][actions-badge]][actions-link]
 [![Documentation Status][rtd-badge]][rtd-link]
@@ -11,21 +11,21 @@
 <!-- SPHINX-START -->
 
 <!-- prettier-ignore-start -->
-[actions-badge]:            https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/workflows/CI/badge.svg
-[actions-link]:             https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/actions
+[actions-badge]:            https://github.com/brain-microstructure-exploration-tools/kwneuro/workflows/CI/badge.svg
+[actions-link]:             https://github.com/brain-microstructure-exploration-tools/kwneuro/actions
 [github-discussions-badge]: https://img.shields.io/static/v1?label=Discussions&message=Ask&color=blue&logo=github
-[github-discussions-link]:  https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines/discussions
-[pypi-link]:                https://pypi.org/project/abcd-microstructure-pipelines/
-[pypi-platforms]:           https://img.shields.io/pypi/pyversions/abcd-microstructure-pipelines
-[pypi-version]:             https://img.shields.io/pypi/v/abcd-microstructure-pipelines
-[rtd-badge]:                https://readthedocs.org/projects/abcd-microstructure-pipelines/badge/?version=latest
-[rtd-link]:                 https://abcd-microstructure-pipelines.readthedocs.io/en/latest/?badge=latest
+[github-discussions-link]:  https://github.com/brain-microstructure-exploration-tools/kwneuro/discussions
+[pypi-link]:                https://pypi.org/project/kwneuro/
+[pypi-platforms]:           https://img.shields.io/pypi/pyversions/kwneuro
+[pypi-version]:             https://img.shields.io/pypi/v/kwneuro
+[rtd-badge]:                https://readthedocs.org/projects/kwneuro/badge/?version=latest
+[rtd-link]:                 https://kwneuro.readthedocs.io/en/latest/?badge=latest
 
 <!-- prettier-ignore-end -->
 
 This project is in an early phase and under active development.
 
-The Python package abcdmicro will have the components needed for constructing
+The Python package kwneuro will have the components needed for constructing
 pipelines to extract brain microstructure from diffusion MRI. Eventually it will
 have pre-built pipelines as well.
 

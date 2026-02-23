@@ -7,11 +7,11 @@ import numpy as np
 import pytest
 import scipy.linalg
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.masks import (
+from kwneuro.dwi import Dwi
+from kwneuro.masks import (
     brain_extract_batch,
 )
-from abcdmicro.resource import (
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryVolumeResource,
@@ -55,7 +55,7 @@ def test_brain_extract_batch(
     with tempfile.TemporaryDirectory() as work_dir:
         mask_out_path = Path(work_dir) / f"aaa_mask.{extension}"
 
-        mock_run_hd_bet = mocker.patch("abcdmicro.masks._run_hd_bet")
+        mock_run_hd_bet = mocker.patch("kwneuro.masks._run_hd_bet")
 
         brain_extract_batch(
             cases=[

@@ -13,9 +13,9 @@
 # ---
 
 # %% [markdown]
-# # abcdmicro: Diffusion MRI Microstructure Example Pipeline
+# # kwneuro: Diffusion MRI Microstructure Example Pipeline
 #
-# This notebook demonstrates the main capabilities of the `abcdmicro` package
+# This notebook demonstrates the main capabilities of the `kwneuro` package
 # for extracting brain microstructure parameters from diffusion MRI data.
 #
 # ## Pipeline overview
@@ -62,8 +62,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from kwneuro.dwi import Dwi
+from kwneuro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
 
 data_dir = Path(data_dir)
 
@@ -251,7 +251,7 @@ plt.show()
 # (FODs) at each voxel. This is the basis for tractography and TractSeg.
 
 # %%
-from abcdmicro.csd import compute_csd_peaks, estimate_response_function
+from kwneuro.csd import compute_csd_peaks, estimate_response_function
 
 response = estimate_response_function(dwi_denoised, mask)
 peak_dirs, peak_values = compute_csd_peaks(dwi_denoised, mask, response)
@@ -280,7 +280,7 @@ plt.show()
 # also produce tract endpoint regions and tract orientation maps (TOMs).
 
 # %%
-from abcdmicro.tractseg import extract_tractseg
+from kwneuro.tractseg import extract_tractseg
 
 tracts = extract_tractseg(dwi_denoised, mask, response, output_type="tract_segmentation")
 

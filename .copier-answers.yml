@@ -6,7 +6,7 @@ email: ebrahim.ebrahim@kitware.com
 full_name: Ebrahim Ebrahim
 license: Apache
 org: brain-microstructure-exploration-tools
-project_name: abcd-microstructure-pipelines
+project_name: kwneuro
 project_short_description: Processing pipelines to extract brain microstructure from diffusion MRI
-url: https://github.com/brain-microstructure-exploration-tools/abcd-microstructure-pipelines
+url: https://github.com/brain-microstructure-exploration-tools/kwneuro
 vcs: true

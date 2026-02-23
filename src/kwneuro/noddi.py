@@ -7,16 +7,16 @@ from typing import TYPE_CHECKING
 
 import amico
 
-from abcdmicro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
-from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
-from abcdmicro.util import (
+from kwneuro.io import FslBvalResource, FslBvecResource, NiftiVolumeResource
+from kwneuro.resource import InMemoryVolumeResource, VolumeResource
+from kwneuro.util import (
     PathLike,
     create_estimate_volume_resource,
     update_volume_metadata,
 )
 
 if TYPE_CHECKING:
-    from abcdmicro.dwi import Dwi
+    from kwneuro.dwi import Dwi
 
 
 @dataclass

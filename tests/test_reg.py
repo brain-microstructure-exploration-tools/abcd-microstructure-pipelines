@@ -7,9 +7,9 @@ import nibabel as nib
 import numpy as np
 import pytest
 
-from abcdmicro.dwi import Dwi
-from abcdmicro.reg import register_volumes
-from abcdmicro.resource import (
+from kwneuro.dwi import Dwi
+from kwneuro.reg import register_volumes
+from kwneuro.resource import (
     InMemoryBvalResource,
     InMemoryBvecResource,
     InMemoryVolumeResource,
@@ -19,7 +19,7 @@ from abcdmicro.resource import (
 @pytest.fixture
 def small_nifti_header():
     hdr = nib.Nifti1Header()
-    hdr["descrip"] = b"an abcdmicro unit test header description"
+    hdr["descrip"] = b"a kwneuro unit test header description"
     hdr.set_xyzt_units(xyz="mm")
     return hdr
 

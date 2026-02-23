@@ -9,7 +9,7 @@ import ants
 import numpy as np
 from ants.core import ANTsImage, ANTsTransform
 
-from abcdmicro.resource import InMemoryVolumeResource, VolumeResource
+from kwneuro.resource import InMemoryVolumeResource, VolumeResource
 
 
 def average_volumes(
