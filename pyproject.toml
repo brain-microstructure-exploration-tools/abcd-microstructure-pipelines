@@ -12,13 +12,12 @@ authors = [
 ]
 description = "Processing pipelines to extract brain microstructure from diffusion MRI"
 readme = "README.md"
-license.file = "LICENSE"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 classifiers = [
   "Development Status :: 1 - Planning",
   "Intended Audience :: Science/Research",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: Apache Software License",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
@@ -77,9 +76,6 @@ gen_masks = "kwneuro.run:gen_masks"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.dynamic]
-version = { attr = "kwneuro.__version__" }
 
 [tool.setuptools_scm]
 write_to = "src/kwneuro/_version.py"
