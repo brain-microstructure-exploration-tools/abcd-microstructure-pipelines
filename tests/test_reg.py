@@ -27,10 +27,18 @@ def small_nifti_header():
 @pytest.fixture
 def dwi1(small_nifti_header) -> Dwi:
     rng = np.random.default_rng(2656542)
-    volume_array = rng.random(size=(10, 10, 10, 6), dtype=float)
     bvals = np.array([0, 1000, 500, 0, 0, 500], dtype=float)
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
+
+    # Structured volume: box on a low-intensity background gives ANTs clear
+    # edges to align, avoiding flaky SyN convergence on pure random noise.
+    # Low-level noise is added so the optimizer has gradient information
+    # everywhere (not just at box edges).
+    volume_array = rng.random(size=(16, 16, 16, 6)) * 0.1
+    for i in (0, 3, 4):  # b0 frames
+        volume_array[4:12, 4:12, 4:12, i] = 1.0
+
     return Dwi(
         volume=InMemoryVolumeResource(
             array=volume_array, affine=np.eye(4), metadata=dict(small_nifti_header)
@@ -43,10 +51,16 @@ def dwi1(small_nifti_header) -> Dwi:
 @pytest.fixture
 def dwi2(small_nifti_header) -> Dwi:
     rng = np.random.default_rng(26540)
-    volume_array = rng.random(size=(12, 8, 10, 6), dtype=float)
     bvals = np.array([0, 1000, 500, 0, 0, 500], dtype=float)
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
+
+    # Shifted box relative to dwi1 — different shape to test cross-resolution
+    # registration.
+    volume_array = rng.random(size=(20, 14, 16, 6)) * 0.1
+    for i in (0, 3, 4):  # b0 frames
+        volume_array[6:14, 3:11, 4:12, i] = 1.0
+
     return Dwi(
         volume=InMemoryVolumeResource(
             array=volume_array, affine=np.eye(4), metadata=dict(small_nifti_header)
@@ -94,7 +108,11 @@ def test_register_volumes(dwi1: Dwi, dwi2: Dwi, tmp_path):
         moving=moving_scalar_volume,
     )
 
-    assert np.allclose(registered_volume.get_array(), applied_volume.get_array())
+    # Loose tolerance: the warp field goes through float32 NIfTI on disk,
+    # so the re-applied result can differ at ~1e-7 from the in-memory result.
+    assert np.allclose(
+        registered_volume.get_array(), applied_volume.get_array(), atol=1e-6
+    )
 
     applied_volume_invert = transform.apply(
         fixed=moving_scalar_volume,
@@ -163,7 +181,11 @@ def test_register_volumes_without_warps(
         moving=moving,
     )
 
-    assert np.allclose(registered_volume.get_array(), applied_volume.get_array())
+    # Loose tolerance: transform files go through float32 on disk, so the
+    # re-applied result can differ at ~1e-7 from the in-memory result.
+    assert np.allclose(
+        registered_volume.get_array(), applied_volume.get_array(), atol=1e-6
+    )
 
     applied_volume_invert = transform.apply(
         fixed=moving,
