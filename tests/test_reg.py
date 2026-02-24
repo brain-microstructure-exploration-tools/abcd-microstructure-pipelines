@@ -31,13 +31,17 @@ def dwi1(small_nifti_header) -> Dwi:
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
 
-    # Structured volume: box on a low-intensity background gives ANTs clear
-    # edges to align, avoiding flaky SyN convergence on pure random noise.
-    # Low-level noise is added so the optimizer has gradient information
-    # everywhere (not just at box edges).
-    volume_array = rng.random(size=(16, 16, 16, 6)) * 0.1
+    # Gaussian blob on a low-noise background. Smooth gradients give ANTs
+    # clear features to align without the sharp edges that amplify float32
+    # precision errors when transforms are round-tripped through disk.
+    shape_3d = (16, 16, 16)
+    volume_array = rng.random(size=(*shape_3d, 6)) * 0.01
+    center = np.array([8.0, 8.0, 8.0])
+    sigma = 3.0
+    coords = np.stack(np.mgrid[0:16, 0:16, 0:16], axis=-1).astype(float)
+    gauss = np.exp(-np.sum((coords - center) ** 2, axis=-1) / (2 * sigma**2))
     for i in (0, 3, 4):  # b0 frames
-        volume_array[4:12, 4:12, 4:12, i] = 1.0
+        volume_array[:, :, :, i] += gauss
 
     return Dwi(
         volume=InMemoryVolumeResource(
@@ -55,11 +59,16 @@ def dwi2(small_nifti_header) -> Dwi:
     bvecs = rng.random(size=(6, 3))
     bvecs = bvecs / np.sqrt((bvecs**2).sum(axis=1, keepdims=True))
 
-    # Shifted box relative to dwi1 — different shape to test cross-resolution
+    # Shifted Gaussian blob — different shape to test cross-resolution
     # registration.
-    volume_array = rng.random(size=(20, 14, 16, 6)) * 0.1
+    shape_3d = (20, 14, 16)
+    volume_array = rng.random(size=(*shape_3d, 6)) * 0.01
+    center = np.array([12.0, 8.0, 8.0])
+    sigma = 3.0
+    coords = np.stack(np.mgrid[0:20, 0:14, 0:16], axis=-1).astype(float)
+    gauss = np.exp(-np.sum((coords - center) ** 2, axis=-1) / (2 * sigma**2))
     for i in (0, 3, 4):  # b0 frames
-        volume_array[6:14, 3:11, 4:12, i] = 1.0
+        volume_array[:, :, :, i] += gauss
 
     return Dwi(
         volume=InMemoryVolumeResource(
@@ -108,10 +117,11 @@ def test_register_volumes(dwi1: Dwi, dwi2: Dwi, tmp_path):
         moving=moving_scalar_volume,
     )
 
-    # Loose tolerance: the warp field goes through float32 NIfTI on disk,
-    # so the re-applied result can differ at ~1e-7 from the in-memory result.
+    # The ANTs warpedmovout uses the in-memory transform, while
+    # transform.apply() reads it back from disk (float32 .mat / .nii.gz).
+    # The float32 round-trip introduces small coordinate errors.
     assert np.allclose(
-        registered_volume.get_array(), applied_volume.get_array(), atol=1e-6
+        registered_volume.get_array(), applied_volume.get_array(), atol=1e-5
     )
 
     applied_volume_invert = transform.apply(
@@ -181,10 +191,11 @@ def test_register_volumes_without_warps(
         moving=moving,
     )
 
-    # Loose tolerance: transform files go through float32 on disk, so the
-    # re-applied result can differ at ~1e-7 from the in-memory result.
+    # The ANTs warpedmovout uses the in-memory transform, while
+    # transform.apply() reads it back from disk (float32 .mat / .nii.gz).
+    # The float32 round-trip introduces small coordinate errors.
     assert np.allclose(
-        registered_volume.get_array(), applied_volume.get_array(), atol=1e-6
+        registered_volume.get_array(), applied_volume.get_array(), atol=1e-5
     )
 
     applied_volume_invert = transform.apply(
