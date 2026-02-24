@@ -96,7 +96,7 @@ def deep_equal_allclose(obj1: Any, obj2: Any) -> bool:
         )
 
     # catch the case of two single python or numpy NaNs (here mypy seems to have an issue with the isinstance, thinking it's always true)
-    if isinstance(obj1, float | np.floating) and np.isnan(obj1) and np.isnan(obj2):  # type: ignore[redundant-expr]
+    if isinstance(obj1, float | np.floating) and np.isnan(obj1) and np.isnan(obj2):
         return True
 
     # for all other types (int, str, etc.)
